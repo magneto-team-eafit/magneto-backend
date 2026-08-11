@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("prisma+postgres://localhost:51213/?api_key=eyJkYXRhYmFzZVVybCI6InBvc3RncmVzOi8vcG9zdGdyZXM6cG9zdGdyZXNAbG9jYWxob3N0OjUxMjE0L3RlbXBsYXRlMT9zc2xtb2RlPWRpc2FibGUmY29ubmVjdGlvbl9saW1pdD0xMCZjb25uZWN0X3RpbWVvdXQ9MCZtYXhfaWRsZV9jb25uZWN0aW9uX2xpZmV0aW1lPTAmcG9vbF90aW1lb3V0PTAmc29ja2V0X3RpbWVvdXQ9MCIsIm5hbWUiOiJkZWZhdWx0Iiwic2hhZG93RGF0YWJhc2VVcmwiOiJwb3N0Z3JlczovL3Bvc3RncmVzOnBvc3RncmVzQGxvY2FsaG9zdDo1MTIxNS90ZW1wbGF0ZTE_c3NsbW9kZT1kaXNhYmxlJmNvbm5lY3Rpb25fbGltaXQ9MTAmY29ubmVjdF90aW1lb3V0PTAmbWF4X2lkbGVfY29ubmVjdGlvbl9saWZldGltZT0wJnBvb2xfdGltZW91dD0wJnNvY2tldF90aW1lb3V0PTAifQ")
 }
 
 model Usuario {
@@ -20,36 +19,49 @@ model Usuario {
 }
 
 model Perfil {
-  id                  String  @id @default(uuid())
-  usuarioId           String  @unique
+  id                  String   @id @default(uuid())
+  usuarioId           String   @unique
   nombreCompleto      String
   telefono            String?
   ubicacion           String?
   resumen             String
   modalidadPreferida  String
-  expectativaSalarial Int 
+  expectativaSalarial Int
   disponibilidad      String
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  usuario Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  educaciones Educacion[]
+  usuario      Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  educaciones  Educacion[]
   experiencias Experiencia[]
 
   @@map("perfiles")
 }
 
 model Educacion {
-  id              String            
-  perfilId        String
-  institucion     String
-  titulo          String
-  nivel           String?
-  fechaInicio     DateTime?
-  fechaFin
-  createdAt
+  id          String    @id @default(uuid())
+  perfilId    String
+  institucion String
+  titulo      String
+  nivel       String?
+  fechaInicio DateTime?
+  fechaFin    DateTime?
+  createdAt   DateTime  @default(now())
+
+  perfil Perfil @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+
+  @@map("educaciones")
 }
 
 model Experiencia {
+  id          String    @id @default(uuid())
+  perfilId    String
+  empresa     String
+  cargo       String
+  descripcion String?
+  fechaInicio DateTime?
+  fechaFin    DateTime?
+  createdAt   DateTime  @default(now())
 
+  perfil Perfil @relation(fields: [perfilId], references: [id], onDelete: Cascade)
 }
