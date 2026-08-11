@@ -1,3 +1,8 @@
+/// Para realizar los cambios de la base de datos en GitHub usar:
+/// npx prisma migrate dev --name ajusta_nombres_tablas
+/// git add .
+/// git commit -m "Parte A: ..."
+/// git push origin feature/vertical-a-perfil-auth
 generator client {
   provider = "prisma-client-js"
 }
@@ -64,4 +69,6 @@ model Experiencia {
   createdAt   DateTime  @default(now())
 
   perfil Perfil @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+
+  @@map("experiencias")
 }
