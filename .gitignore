@@ -1,0 +1,9 @@
+# Nunca subir esto a GitHub:
+node_modules/
+dist/
+.env
+/src/generated/prisma
+
+# Configuracion local de herramientas de IA, no es parte del proyecto:
+.agents/
+skills-lock.json
