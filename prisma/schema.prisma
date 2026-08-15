@@ -1,0 +1,74 @@
+/// Para realizar los cambios de la base de datos en GitHub usar:
+/// npx prisma migrate dev --name ajusta_nombres_tablas
+/// git add .
+/// git commit -m "Parte A: ..."
+/// git push origin feature/vertical-a-perfil-auth
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Usuario {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  perfil Perfil?
+
+  @@map("usuarios")
+}
+
+model Perfil {
+  id                  String   @id @default(uuid())
+  usuarioId           String   @unique
+  nombreCompleto      String
+  telefono            String?
+  ubicacion           String?
+  resumen             String
+  modalidadPreferida  String
+  expectativaSalarial Int
+  disponibilidad      String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  usuario      Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  educaciones  Educacion[]
+  experiencias Experiencia[]
+
+  @@map("perfiles")
+}
+
+model Educacion {
+  id          String    @id @default(uuid())
+  perfilId    String
+  institucion String
+  titulo      String
+  nivel       String?
+  fechaInicio DateTime?
+  fechaFin    DateTime?
+  createdAt   DateTime  @default(now())
+
+  perfil Perfil @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+
+  @@map("educaciones")
+}
+
+model Experiencia {
+  id          String    @id @default(uuid())
+  perfilId    String
+  empresa     String
+  cargo       String
+  descripcion String?
+  fechaInicio DateTime?
+  fechaFin    DateTime?
+  createdAt   DateTime  @default(now())
+
+  perfil Perfil @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+
+  @@map("experiencias")
+}
