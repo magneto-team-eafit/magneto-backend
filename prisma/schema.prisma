@@ -20,6 +20,8 @@ model Usuario {
 
   perfil Perfil?
 
+  postulaciones Postulacion[]
+  
   @@map("usuarios")
 }
 
@@ -90,7 +92,24 @@ model Vacante {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  postulaciones Postulacion[]
+  
   @@index([ubicacion])
   @@index([modalidad])
   @@map("vacantes")
+}
+
+model Postulacion {
+  id        String   @id @default(uuid())
+  usuarioId String
+  vacanteId String
+  estado    String   @default("POSTULADO") // "POSTULADO", "EN_REVISION", "ENTREVISTA", "DESCARTADO"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  vacante Vacante @relation(fields: [vacanteId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, vacanteId]) // Evita que un usuario se postule dos veces a la misma vacante
+  @@map("postulaciones")
 }
