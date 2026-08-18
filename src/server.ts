@@ -1,8 +1,9 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import authRoutes from "./interfaces/perfil/routes/authRoutes"; 
+import authRoutes from "./interfaces/perfil/routes/authRoutes";
 import perfilRoutes from "./interfaces/perfil/routes/perfilRoutes";
+import vacanteRoutes from "./interfaces/vacantes/routes/vacanteRoutes";
 
 dotenv.config();
 
@@ -18,9 +19,9 @@ app.get("/health", (req, res) => {
   });
 });
 
-// NUEVO: todas las rutas dentro de authRoutes van a vivir bajo /auth
-app.use("/auth", authRoutes); 
+app.use("/auth", authRoutes);
 app.use("/perfil", perfilRoutes);
+app.use("/vacantes", vacanteRoutes);
 
 const PORT = process.env.PORT || 4000;
 

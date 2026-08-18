@@ -72,3 +72,25 @@ model Experiencia {
 
   @@map("experiencias")
 }
+
+model Vacante {
+  id               String    @id @default(uuid())
+  titulo           String
+  empresa          String
+  ubicacion        String?
+  modalidad        String?
+  nivelExperiencia String?
+  salarioMin       Int?
+  salarioMax       Int?
+  moneda           String?
+  descripcion      String
+  urlOriginal      String?
+  fuente           String    @default("kaggle-linkedin")
+  fechaPublicacion DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([ubicacion])
+  @@index([modalidad])
+  @@map("vacantes")
+}

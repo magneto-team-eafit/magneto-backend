@@ -7,3 +7,4 @@ dist/
 # Configuracion local de herramientas de IA, no es parte del proyecto:
 .agents/
 skills-lock.json
+data/
