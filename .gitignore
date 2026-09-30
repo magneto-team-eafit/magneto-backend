@@ -2,9 +2,24 @@
 node_modules/
 dist/
 .env
-/src/generated/prisma
+.env.*
+!.env.example
 
 # Configuracion local de herramientas de IA, no es parte del proyecto:
 .agents/
 skills-lock.json
 data/
+
+# Configuracion de editores
+.idea/
+.vscode/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Logs y artefactos de build
+*.log
+npm-debug.log*
+*.tsbuildinfo
+coverage/
