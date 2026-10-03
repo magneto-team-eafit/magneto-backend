@@ -3,6 +3,10 @@ import { IVacanteRepository } from "../../../domain/vacantes/repositories/IVacan
 interface ListarVacantesInput {
     ubicacion?: string;
     modalidad?: string;
+    nivelExperiencia?: string;
+    salarioMin?: number;
+    salarioMax?: number;
+    q?: string;
     pagina?: number;
     limite?: number;
 }
@@ -22,6 +26,10 @@ export class ListarVacantes {
         const { vacantes, total } = await this.vacanteRepository.listar({
             ubicacion: input.ubicacion,
             modalidad: input.modalidad,
+            nivelExperiencia: input.nivelExperiencia,
+            salarioMin: input.salarioMin,
+            salarioMax: input.salarioMax,
+            q: input.q,
             pagina,
             limite,
         });
