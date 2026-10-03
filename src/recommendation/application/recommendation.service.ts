@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import { calcularScore } from './scoring.service';
 import { RecomendacionResultado } from '../domain/recommendation.types';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../infrastructure/database/PrismaClient';
 
 export async function obtenerRecomendacionesPorUsuarioId(
   usuarioId: string

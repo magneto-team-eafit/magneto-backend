@@ -9,7 +9,7 @@ export async function getRecomendacionesHandler(req: Request, res: Response) {
       return res.status(400).json({ error: 'El parámetro usuarioId es requerido.' });
     }
 
-    const recomendaciones = await obtenerRecomendacionesPorUsuarioId(usuarioId);
+    const recomendaciones = await obtenerRecomendacionesPorUsuarioId(String(usuarioId));
     return res.status(200).json(recomendaciones);
   } catch (error: any) {
     console.error('Error al generar recomendaciones:', error);
