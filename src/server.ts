@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import authRoutes from "./interfaces/perfil/routes/authRoutes";
 import perfilRoutes from "./interfaces/perfil/routes/perfilRoutes";
 import vacanteRoutes from "./interfaces/vacantes/routes/vacanteRoutes";
+import recommendationRoutes from "./recommendation/interfaces/recommendation.routes";
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.get("/health", (req, res) => {
 app.use("/auth", authRoutes);
 app.use("/perfil", perfilRoutes);
 app.use("/vacantes", vacanteRoutes);
+app.use("/recomendaciones", recommendationRoutes);
 
 const PORT = process.env.PORT || 4000;
 
