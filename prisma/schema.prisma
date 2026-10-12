@@ -41,6 +41,7 @@ model Perfil {
   usuario      Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   educaciones  Educacion[]
   experiencias Experiencia[]
+  habilidades Habilidad[]
 
   @@map("perfiles")
 }
@@ -73,6 +74,18 @@ model Experiencia {
   perfil Perfil @relation(fields: [perfilId], references: [id], onDelete: Cascade)
 
   @@map("experiencias")
+}
+
+model Habilidad {
+  id        String   @id @default(uuid())
+  perfilId  String
+  nombre    String
+  createdAt DateTime @default(now())
+
+  perfil Perfil @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+
+  @@unique([perfilId, nombre])
+  @@map("habilidades")
 }
 
 model Vacante {
