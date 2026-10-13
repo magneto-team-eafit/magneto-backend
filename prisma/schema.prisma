@@ -21,7 +21,8 @@ model Usuario {
   perfil Perfil?
 
   postulaciones Postulacion[]
-  
+  historialRecomendaciones HistorialRecomendacion[]
+
   @@map("usuarios")
 }
 
@@ -106,7 +107,8 @@ model Vacante {
   updatedAt        DateTime  @updatedAt
 
   postulaciones Postulacion[]
-  
+  historialRecomendaciones HistorialRecomendacion[]
+
   @@index([ubicacion])
   @@index([modalidad])
   @@map("vacantes")
@@ -126,3 +128,31 @@ model Postulacion {
   @@unique([usuarioId, vacanteId]) // Evita que un usuario se postule dos veces a la misma vacante
   @@map("postulaciones")
 }
+
+
+model HistorialRecomendacion {
+  id        String   @id @default(uuid())
+  usuarioId String
+  vacanteId String
+  score     Float
+  desglose  Json
+  motivos   Json
+  createdAt DateTime @default(now())
+
+  usuario Usuario @relation(
+    fields: [usuarioId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  vacante Vacante @relation(
+    fields: [vacanteId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  @@index([usuarioId, createdAt])
+  @@index([vacanteId])
+  @@map("historial_recomendaciones")
+}
+
