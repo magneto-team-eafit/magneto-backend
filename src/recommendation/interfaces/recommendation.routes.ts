@@ -1,9 +1,11 @@
 import { Router } from 'express';
-import { getRecomendacionesHandler } from './recommendation.controller';
+import { getRecomendacionesHandler,
+        getHistorialHandler,
+} from "./recommendation.controller";
 
 const router = Router();
 
-// GET /recomendaciones/:usuarioId
-router.get('/:usuarioId', getRecomendacionesHandler);
+router.get("/:usuarioId", getRecomendacionesHandler);
+router.get("/:usuarioId/historial", getHistorialHandler);
 
 export default router;
