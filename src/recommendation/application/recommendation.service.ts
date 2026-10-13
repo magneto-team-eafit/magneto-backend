@@ -24,48 +24,87 @@ export async function obtenerRecomendacionesPorUsuarioId(
     throw new Error('El usuario o su perfil no existe');
   }
 
-  const { perfil } = usuario;
+  const perfil = usuario.perfil;
 
-  // Concatenar textos relevantes del perfil para el extractor de palabras clave
-  const titulosEdu = perfil.educaciones.map(e => `${e.titulo} ${e.institucion}`).join(' ');
-  const cargosExp = perfil.experiencias.map(e => `${e.cargo} ${e.empresa} ${e.descripcion || ''}`).join(' ');
-  const textoPerfil = `${perfil.resumen} ${titulosEdu} ${cargosExp}`;
+  const titulosEdu = perfil.educaciones
+    .map((e) => `${e.titulo} ${e.institucion}`)
+    .join(" ");
 
-  const datosUsuarioScoring = {
+  const cargosExp = perfil.experiencias
+    .map((e) => `${e.cargo} ${e.empresa} ${e.descripcion || ""}`)
+    .join(" ");
+
+  const datosUsuario = {
     ubicacion: perfil.ubicacion,
     modalidadPreferida: perfil.modalidadPreferida,
-    textoPerfil
+    textoPerfil: `${perfil.resumen} ${titulosEdu} ${cargosExp}`,
   };
 
-  // 2. Obtener vacantes registradas en la base de datos
   const vacantes = await prisma.vacante.findMany({
-    take: 50 // Limitamos la muestra inicial para optimizar el baseline
+    where: {
+      postulaciones: {
+        none: {
+          usuarioId,
+          estado: "DESCARTADO",
+        },
+      },
+    },
+    take: 50,
   });
 
-  // 3. Calcular score y ranking
-  const recomendaciones = vacantes.map(vacante => {
-    const resultadoScoring = calcularScore(datosUsuarioScoring, {
-      id: vacante.id,
-      titulo: vacante.titulo,
-      empresa: vacante.empresa,
-      ubicacion: vacante.ubicacion,
-      modalidad: vacante.modalidad,
-      descripcion: vacante.descripcion
+  const recomendaciones: RecomendacionResultado[] = vacantes
+    .map((vacante) => {
+      const resultado = calcularScore(datosUsuario, {
+        id: vacante.id,
+        titulo: vacante.titulo,
+        empresa: vacante.empresa,
+        ubicacion: vacante.ubicacion,
+        modalidad: vacante.modalidad,
+        descripcion: vacante.descripcion,
+      });
+
+      return {
+        vacanteId: vacante.id,
+        titulo: vacante.titulo,
+        empresa: vacante.empresa,
+        ubicacion: vacante.ubicacion,
+        modalidad: vacante.modalidad,
+        score: resultado.score,
+        desglose: resultado.desglose,
+        motivos: resultado.motivos,
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  if (recomendaciones.length > 0) {
+    await prisma.historialRecomendacion.createMany({
+      data: recomendaciones.map((r) => ({
+        usuarioId,
+        vacanteId: r.vacanteId,
+        score: r.score,
+        desglose: r.desglose as Prisma.InputJsonValue,
+        motivos: r.motivos as Prisma.InputJsonValue,
+      })),
     });
-
-    return {
-      vacanteId: vacante.id,
-      titulo: vacante.titulo,
-      empresa: vacante.empresa,
-      ubicacion: vacante.ubicacion,
-      modalidad: vacante.modalidad,
-      score: resultadoScoring.score,
-      desglose: resultadoScoring.desglose
-    };
-  });
-
-  // 4. Ordenar de mayor a menor score
-  recomendaciones.sort((a, b) => b.score - a.score);
+  }
 
   return recomendaciones;
+}
+
+export async function obtenerHistorialPorUsuarioId(usuarioId: string) {
+  return prisma.historialRecomendacion.findMany({
+    where: { usuarioId },
+    include: {
+      vacante: {
+        select: {
+          titulo: true,
+          empresa: true,
+          ubicacion: true,
+          modalidad: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
 }
