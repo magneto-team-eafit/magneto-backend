@@ -1,7 +1,7 @@
 export interface DatosScoringUsuario {
   ubicacion?: string | null;
   modalidadPreferida?: string | null;
-  textoPerfil: string; // Unificación de resumen + títulos + cargos
+  textoPerfil: string; 
 }
 
 export interface DatosScoringVacante {
@@ -13,6 +13,12 @@ export interface DatosScoringVacante {
   descripcion: string;
 }
 
+export interface DesgloseScore {
+    ubicacionScore: number;
+    modalidadScore: number;
+    palabrasClaveScore: number;
+}
+
 export interface RecomendacionResultado {
   vacanteId: string;
   titulo: string;
@@ -20,9 +26,6 @@ export interface RecomendacionResultado {
   ubicacion: string | null;
   modalidad: string | null;
   score: number;
-  desglose: {
-    ubicacionScore: number;
-    modalidadScore: number;
-    palabrasClaveScore: number;
-  };
+  desglose: DesgloseScore;
+  motivos: string[];
 }
