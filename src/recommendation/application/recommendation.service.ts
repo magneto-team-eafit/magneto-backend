@@ -1,8 +1,16 @@
-import { PrismaClient } from '@prisma/client';
-import { calcularScore } from './scoring.service';
-import { RecomendacionResultado } from '../domain/recommendation.types';
+import "dotenv/config";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import { calcularScore } from "./scoring.service";
+import { RecomendacionResultado } from "../domain/recommendation.types";
 
-const prisma = new PrismaClient();
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 export async function obtenerRecomendacionesPorUsuarioId(
   usuarioId: string
@@ -21,7 +29,7 @@ export async function obtenerRecomendacionesPorUsuarioId(
   });
 
   if (!usuario || !usuario.perfil) {
-    throw new Error('El usuario o su perfil no existe');
+    throw new Error("El usuario o su perfil no existe.");
   }
 
   const perfil = usuario.perfil;
