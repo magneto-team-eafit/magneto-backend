@@ -46,12 +46,19 @@ function calcularScoreModalidad(
   const normVac = normalizarTexto(modalidadVacante);
 
   const modalidades = ["remoto", "hibrido", "presencial"];
-  const modalidadUsuario = modalidades.find((m) => normUser.includes(m));
-  const modalidadVacante = modalidades.find((m) => normVac.includes(m));
+  const modalidadUsuarioEncontrada = modalidades.find(
+  (m) => normUser.includes(m)
+);
 
-  return modalidadUsuario && modalidadUsuario === modalidadVacante
-    ? PESOS_SCORING.modalidad
-    : 0;
+const modalidadVacanteEncontrada = modalidades.find(
+  (m) => normVac.includes(m)
+);
+
+return modalidadUsuarioEncontrada &&
+  modalidadUsuarioEncontrada === modalidadVacanteEncontrada
+  ? PESOS_SCORING.modalidad
+  : 0;
+
 }
 
 
