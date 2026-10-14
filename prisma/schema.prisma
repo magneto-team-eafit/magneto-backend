@@ -100,7 +100,7 @@ model Vacante {
   salarioMax       Int?
   moneda           String?
   descripcion      String
-  urlOriginal      String?
+  urlOriginal      String?   @unique
   fuente           String    @default("kaggle-linkedin")
   fechaPublicacion DateTime?
   createdAt        DateTime  @default(now())
@@ -139,17 +139,8 @@ model HistorialRecomendacion {
   motivos   Json
   createdAt DateTime @default(now())
 
-  usuario Usuario @relation(
-    fields: [usuarioId],
-    references: [id],
-    onDelete: Cascade
-  )
-
-  vacante Vacante @relation(
-    fields: [vacanteId],
-    references: [id],
-    onDelete: Cascade
-  )
+    usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  vacante Vacante @relation(fields: [vacanteId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId, createdAt])
   @@index([vacanteId])

@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../database/PrismaClient';
 
 export class PrismaPostulacionRepository {
   async crear(usuarioId: string, vacanteId: string) {

@@ -1,16 +1,7 @@
-import "dotenv/config";
-import { Prisma, PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
-import { calcularScore } from "./scoring.service";
-import { RecomendacionResultado } from "../domain/recommendation.types";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+import { Prisma } from "@prisma/client";
+import { calcularScore } from './scoring.service';
+import { RecomendacionResultado } from '../domain/recommendation.types';
+import { prisma } from '../../infrastructure/database/PrismaClient';
 
 export async function obtenerRecomendacionesPorUsuarioId(
   usuarioId: string
@@ -90,8 +81,8 @@ export async function obtenerRecomendacionesPorUsuarioId(
         usuarioId,
         vacanteId: r.vacanteId,
         score: r.score,
-        desglose: r.desglose as Prisma.InputJsonValue,
-        motivos: r.motivos as Prisma.InputJsonValue,
+        desglose: r.desglose as unknown as Prisma.InputJsonValue,
+        motivos: r.motivos as unknown as Prisma.InputJsonValue,
       })),
     });
   }

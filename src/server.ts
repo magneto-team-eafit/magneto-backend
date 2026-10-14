@@ -5,6 +5,7 @@ import authRoutes from "./interfaces/perfil/routes/authRoutes";
 import perfilRoutes from "./interfaces/perfil/routes/perfilRoutes";
 import vacanteRoutes from "./interfaces/vacantes/routes/vacanteRoutes";
 import recommendationRoutes from "./recommendation/interfaces/recommendation.routes";
+import postulacionRoutes from "./interfaces/http/routes/postulacionRoutes";
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use("/auth", authRoutes);
 app.use("/perfil", perfilRoutes);
 app.use("/vacantes", vacanteRoutes);
 app.use("/recomendaciones", recommendationRoutes);
+app.use("/postulaciones", postulacionRoutes);
 
 const PORT = process.env.PORT || 4000;
 
