@@ -66,7 +66,7 @@ function calcularScorePalabrasClave(
   ]);
 
   const palabrasPerfil = new Set(
-    normalizadorTexto(textoPerfil)
+    normalizarTexto(textoPerfil)
       .split(" ")
       .filter((d) => d.length > 2 && !stopwords.has(d))
   );
@@ -83,8 +83,8 @@ function calcularScorePalabrasClave(
   }
 
   return Math.round(
-    (coincidencias / palabrasUsuario.size)*
-      PESOS_SCORING.palabrasClaves *
+    (coincidencias / palabrasPerfil.size)*
+      PESOS_SCORING.palabrasClave *
       100
   ) / 100;
 }
