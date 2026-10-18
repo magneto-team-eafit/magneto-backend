@@ -16,9 +16,7 @@ export async function getRecomendacionesHandler(
       });
     }
 
-    const recomendaciones =
-      await obtenerRecomendacionesPorUsuarioId(usuarioId);
-
+    const recomendaciones = await obtenerRecomendacionesPorUsuarioId(String(usuarioId));
     return res.status(200).json(recomendaciones);
   } catch (error) {
     const mensaje =
@@ -48,7 +46,7 @@ export async function getHistorialHandler(
       });
     }
 
-    const historial = await obtenerHistorialPorUsuarioId(usuarioId);
+    const historial = await obtenerHistorialPorUsuarioId(String(usuarioId));
 
     return res.status(200).json(historial);
   } catch (error) {

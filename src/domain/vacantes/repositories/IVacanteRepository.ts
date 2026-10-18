@@ -6,6 +6,10 @@ import { Vacante } from "../entities/Vacante";
 export interface FiltrosVacantes {
     ubicacion?: string;
     modalidad?: string;
+    nivelExperiencia?: string;
+    salarioMin?: number;
+    salarioMax?: number;
+    q?: string; // busqueda full-text sobre titulo + empresa + descripcion
     pagina: number;
     limite: number;
 }
@@ -17,4 +21,5 @@ export interface ResultadoVacantes {
 
 export interface IVacanteRepository {
     listar(filtros: FiltrosVacantes): Promise<ResultadoVacantes>;
+    obtenerPorId(id: string): Promise<Vacante | null>;
 }
