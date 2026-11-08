@@ -8,6 +8,5 @@ const router = Router();
 // pasa primero por ahi, y solo si el token es valido llega al controlador.
 router.get("/", authMiddleware, PerfilController.obtener);
 router.put("/paso/:paso", authMiddleware, PerfilController.guardarPaso);
-router.put("/", authMiddleware, PerfilController.actualizar);
 
 export default router;
