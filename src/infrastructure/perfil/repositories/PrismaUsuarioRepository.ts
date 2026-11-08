@@ -4,7 +4,11 @@ import { prisma } from "../../database/PrismaClient";
 
 export class PrismaUsuarioRepository implements IUsuarioRepository {
   async buscarPorEmail(email: string): Promise<Usuario | null> {
-    const fila = await prisma.usuario.findUnique({ where: { email } });
+    // La busqueda ignora mayusculas y minusculas, para encontrar tambien las
+    // cuentas antiguas que se guardaron con el correo escrito de otra forma.
+    const fila = await prisma.usuario.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
 
     if (!fila) return null;
 
