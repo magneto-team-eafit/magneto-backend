@@ -5,6 +5,7 @@
 // con un mensaje claro por cada campo que falla.
 
 import { ExperienciaItem, EducacionItem } from "../entities/Perfil";
+import { limpiarTexto } from "./sanitizar";
 
 export type Errores = Record<string, string>;
 export const MODALIDADES = ["Remoto", "Presencial", "Hibrido"] as const;
@@ -36,22 +37,23 @@ function esObjeto(valor: unknown): valor is Record<string, unknown> {
     return typeof valor === "object" && valor !== null && !Array.isArray(valor);
 }
 
-// Valida un texto: lo recorta y revisa largo minimo y maximo.
+// Valida un texto: lo sanitiza (ver sanitizar.ts) y revisa largo minimo y maximo.
 function validarTexto(
     valor: unknown,
     campo: string,
     errores: Errores,
-    opciones: { min: number; max: number; obligatorio: boolean; etiqueta: string }
+    opciones: { min: number; max: number; obligatorio: boolean; etiqueta: string; multilinea?: boolean }
 ): string | null {
-    if (valor === undefined || valor === null || (typeof valor === "string" && valor.trim() === "")) {
-        if (opciones.obligatorio) errores[campo] = `${opciones.etiqueta} es un campo obligatorio.`;
-        return null;
-    }
-    if (typeof valor !== "string") {
+    if (valor !== undefined && valor !== null && typeof valor !== "string") {
         errores[campo] = `${opciones.etiqueta} debe ser texto.`;
         return null;
     }
-    const limpio = valor.trim();
+    // Se limpia antes de medir: un texto que era solo etiquetas HTML queda vacio.
+    const limpio = typeof valor === "string" ? limpiarTexto(valor, { multilinea: opciones.multilinea }) : "";
+    if (limpio === "") {
+        if (opciones.obligatorio) errores[campo] = `${opciones.etiqueta} es un campo obligatorio.`;
+        return null;
+    }
     if (limpio.length < opciones.min) {
         errores[campo] = `${opciones.etiqueta} debe tener al menos ${opciones.min} caracteres.`;
         return null;
@@ -142,8 +144,7 @@ export function validarDatosPersonales(entrada: unknown): { datos: DatosPersonal
         min: 2, max: 100, obligatorio: true, etiqueta: "La ubicacion",
     });
     const resumen = validarTexto(e.resumen, "resumen", errores, {
-        min: 20, max: 1000, obligatorio: true, etiqueta: "El resumen profesional",
-    });
+        min: 20, max: 1000, obligatorio: true, etiqueta: "El resumen profesional", multilinea: true,    });
 
     return {
         datos: {
@@ -185,8 +186,7 @@ export function validarExperiencias(entrada: unknown): { datos: ExperienciaItem[
             min: 2, max: 100, obligatorio: true, etiqueta: "El cargo",
         });
         const descripcion = validarTexto(item.descripcion, `${p}.descripcion`, errores, {
-            min: 0, max: 1000, obligatorio: false, etiqueta: "La descripcion",
-        });
+            min: 0, max: 1000, obligatorio: false, etiqueta: "La descripcion", multilinea: true,        });
         const fechaInicio = validarFecha(item.fechaInicio, `${p}.fechaInicio`, errores, {
             obligatoria: true, etiqueta: "La fecha de inicio",
         });
