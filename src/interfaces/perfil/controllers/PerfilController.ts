@@ -15,7 +15,7 @@ function fechaATexto(fecha: Date | null): string | null {
 }
 
 // Forma unica de respuesta para GET y PUT del perfil:
-// { perfil, completitud, desglose }
+// { perfil, completitud, desglose, sugerencias }
 function aRespuesta(perfil: Perfil) {
     return {
         perfil: {
@@ -45,6 +45,7 @@ function aRespuesta(perfil: Perfil) {
         },
         completitud: perfil.calcularCompletitud(),
         desglose: perfil.calcularDesglose(),
+        sugerencias: perfil.calcularSugerencias(),
     };
 }
 
@@ -58,7 +59,7 @@ export class PerfilController {
             const perfil = await obtenerPerfil.ejecutar(usuarioId);
 
             if (!perfil) {
-                res.status(200).json({ perfil: null, completitud: 0, desglose: desgloseVacio() });
+                res.status(200).json({ perfil: null, completitud: 0, desglose: desgloseVacio(), sugerencias: [] });
                 return;
             }
 
