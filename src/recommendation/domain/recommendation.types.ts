@@ -1,7 +1,12 @@
+// Datos del usuario que el motor de scoring necesita (ya "aplanados":
+// el servicio arma esto a partir de las tablas del perfil).
 export interface DatosScoringUsuario {
   ubicacion?: string | null;
   modalidadPreferida?: string | null;
-  textoPerfil: string; 
+  // Habilidades declaradas en el perfil (una por elemento).
+  habilidades: string[];
+  // Texto libre del perfil: resumen + cargos + titulos de estudio.
+  textoPerfil: string;
 }
 
 export interface DatosScoringVacante {
@@ -13,10 +18,19 @@ export interface DatosScoringVacante {
   descripcion: string;
 }
 
+// Cada criterio tiene su puntaje y su maximo posible (en "maximos"), para que
+// el frontend muestre "12 / 40" sin tener los pesos escritos a mano.
 export interface DesgloseScore {
-    ubicacionScore: number;
-    modalidadScore: number;
-    palabrasClaveScore: number;
+  habilidades: number;
+  palabrasClave: number;
+  ubicacion: number;
+  modalidad: number;
+  maximos: {
+    habilidades: number;
+    palabrasClave: number;
+    ubicacion: number;
+    modalidad: number;
+  };
 }
 
 export interface RecomendacionResultado {
