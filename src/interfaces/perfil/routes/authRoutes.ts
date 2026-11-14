@@ -6,43 +6,12 @@ const router = Router();
 
 /**
  * @openapi
- * /api/auth/registro:
+ * /auth/registro:
  *   post:
  *     summary: Registra un nuevo usuario
+ *     description: El correo se guarda en minúsculas y la contraseña se almacena cifrada (nunca se devuelve).
  *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [email, password, nombre]
- *             properties:
- *               email:
- *                 type: string
- *                 example: "matias@example.com"
- *               password:
- *                 type: string
- *                 example: "Secreta123*"
- *               nombre:
- *                 type: string
- *                 example: "Matias Zapata"
- *     responses:
- *       201:
- *         description: Usuario registrado exitosamente
- *       400:
- *         description: Error de validación en los datos
- *       429:
- *         description: Demasiados intentos
- */
-router.post("/registro", limitadorRegistro, AuthController.registrar);
-
-/**
- * @openapi
- * /api/auth/login:
- *   post:
- *     summary: Inicia sesión en la plataforma
- *     tags: [Auth]
+ *     security: []
  *     requestBody:
  *       required: true
  *       content:
@@ -53,17 +22,77 @@ router.post("/registro", limitadorRegistro, AuthController.registrar);
  *             properties:
  *               email:
  *                 type: string
- *                 example: "matias@example.com"
+ *                 example: "laura@example.com"
+ *               password:
+ *                 type: string
+ *                 description: Mínimo 8 caracteres
+ *                 example: "Secreta123*"
+ *     responses:
+ *       201:
+ *         description: Usuario registrado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Datos inválidos. Devuelve `error` y `detalles` con el mensaje de cada campo.
+ *       409:
+ *         description: Ya existe un usuario con ese correo
+ *       429:
+ *         description: Demasiados intentos de registro (límite de 10 por hora)
+ */
+router.post("/registro", limitadorRegistro, AuthController.registrar);
+
+/**
+ * @openapi
+ * /auth/login:
+ *   post:
+ *     summary: Inicia sesión en la plataforma
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: "laura@example.com"
  *               password:
  *                 type: string
  *                 example: "Secreta123*"
  *     responses:
  *       200:
- *         description: Login exitoso. Retorna datos de usuario y token JWT.
+ *         description: Inicio de sesión exitoso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: JWT válido por 7 días. Se envía en el header `Authorization Bearer`.
+ *                 usuarioId:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *       400:
+ *         description: Falta el correo o la contraseña
  *       401:
  *         description: Credenciales inválidas
  *       429:
- *         description: Demasiados intentos
+ *         description: Demasiados intentos fallidos (límite de 10 cada 15 minutos)
  */
 router.post("/login", limitadorLogin, AuthController.login);
 

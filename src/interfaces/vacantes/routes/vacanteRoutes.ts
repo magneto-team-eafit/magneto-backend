@@ -5,17 +5,18 @@ const router = Router();
 
 /**
  * @openapi
- * /api/vacantes:
+ * /vacantes:
  *   get:
  *     summary: Obtiene la lista paginada de vacantes
- *     description: Permite filtrar vacantes por búsqueda de texto, ubicación, modalidad y salarios usando el índice GIN.
+ *     description: Es público (no requiere token). Con `q` usa búsqueda de texto completo sobre título, empresa y descripción. Los resultados van de la más reciente a la más antigua.
  *     tags: [Vacantes]
+ *     security: []
  *     parameters:
  *       - in: query
  *         name: q
  *         schema:
  *           type: string
- *         description: Término de búsqueda (ej. "desarrollador")
+ *         description: Texto a buscar (ej. "analista")
  *       - in: query
  *         name: ubicacion
  *         schema:
@@ -25,34 +26,62 @@ const router = Router();
  *         name: modalidad
  *         schema:
  *           type: string
- *         description: Modalidad de trabajo (remoto, presencial, hibrido)
+ *           enum: [remoto, presencial, hibrido]
  *       - in: query
  *         name: nivelExperiencia
  *         schema:
  *           type: string
  *       - in: query
- *         name: limite
+ *         name: salarioMin
  *         schema:
- *           type: integer
- *           default: 10
- *         description: Cantidad de vacantes por página
+ *           type: number
+ *       - in: query
+ *         name: salarioMax
+ *         schema:
+ *           type: number
  *       - in: query
  *         name: pagina
  *         schema:
  *           type: integer
  *           default: 1
+ *       - in: query
+ *         name: limite
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *         description: Vacantes por página (si no es válido se usa el valor por defecto)
  *     responses:
  *       200:
- *         description: Retorna el total de vacantes y la lista según los filtros
+ *         description: Vacantes de la página pedida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 vacantes:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 total:
+ *                   type: integer
+ *                 pagina:
+ *                   type: integer
+ *                 totalPaginas:
+ *                   type: integer
+ *       400:
+ *         description: Parámetros inválidos
  */
 router.get("/", VacanteController.listar);
 
 /**
  * @openapi
- * /api/vacantes/{id}:
+ * /vacantes/{id}:
  *   get:
- *     summary: Obtiene los detalles de una vacante específica por ID
+ *     summary: Obtiene el detalle de una vacante
+ *     description: Es público (no requiere token).
  *     tags: [Vacantes]
+ *     security: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -62,9 +91,9 @@ router.get("/", VacanteController.listar);
  *         description: UUID de la vacante
  *     responses:
  *       200:
- *         description: Detalles completos de la vacante
+ *         description: Detalle completo de la vacante
  *       404:
- *         description: Vacante no encontrada
+ *         description: La vacante no existe
  */
 router.get("/:id", VacanteController.obtenerPorId);
 

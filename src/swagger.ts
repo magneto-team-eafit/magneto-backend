@@ -27,8 +27,8 @@ const options: swaggerJSDoc.Options = {
             bearerAuth: [],
         }],
     },
-    // Buscamos los comentarios de documentacion en ambas carpetas
-    apis: ['./src/interfaces/**/*.ts', './src/infrastructure/**/*.ts'],
+    // Buscamos los comentarios de documentacion en las carpetas que tienen rutas
+    apis: ['./src/interfaces/**/*.ts', './src/infrastructure/**/*.ts', './src/recommendation/**/*.ts'],
 };
 
 export const swaggerSpec = swaggerJSDoc(options);
