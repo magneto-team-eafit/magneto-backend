@@ -29,11 +29,14 @@ export async function obtenerRecomendacionesPorUsuarioId(
   const perfil = usuario.perfil;
   const habilidades = perfil.habilidades.map((h) => h.nombre);
 
-  const titulosEdu = perfil.educaciones.map((e) => `${e.titulo} ${e.institucion}`).join(" ");
+  const titulosEdu = perfil.educaciones.map((e) => e.titulo).join(" ");
   const cargosExp = perfil.experiencias
-    .map((e) => `${e.cargo} ${e.empresa} ${e.descripcion || ""}`)
+    .map((e) => `${e.cargo} ${e.descripcion || ""}`)
     .join(" ");
-  const textoPerfil = `${perfil.resumen} ${titulosEdu} ${cargosExp}`;
+  // El "sector" sale de los cargos y estudios. El resumen es texto libre y
+  // lleno de palabras comunes, asi que solo se usa si no hay nada mas.
+  const nucleo = `${titulosEdu} ${cargosExp}`.trim();
+  const textoPerfil = nucleo || perfil.resumen;
 
   const datosUsuario = {
     ubicacion: perfil.ubicacion,

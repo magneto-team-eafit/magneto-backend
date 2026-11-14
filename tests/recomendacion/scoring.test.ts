@@ -78,6 +78,21 @@ describe("esRelevante", () => {
   });
 });
 
+describe("sector laboral", () => {
+  const medico = { ...usuario, habilidades: ["Triage"], textoPerfil: "Enfermera jefe Medicina general" };
+
+  it("una palabra en el titulo vale mas que en la descripcion", () => {
+    const enTitulo = calcularScore(medico, vacante({ titulo: "Enfermera jefe", descripcion: "Clinica" }));
+    const enDescripcion = calcularScore(medico, vacante({ titulo: "Cargo", descripcion: "Buscamos enfermera jefe" }));
+    expect(enTitulo.desglose.palabrasClave).toBeGreaterThan(enDescripcion.desglose.palabrasClave);
+  });
+
+  it("una vacante de otro sector no es relevante aunque coincida ciudad y modalidad", () => {
+    const r = calcularScore(medico, vacante({ titulo: "Cajero fines de semana", descripcion: "Atencion a clientes en caja" }));
+    expect(esRelevante(r.desglose)).toBe(false);
+  });
+});
+
 describe("armarConsultaTexto", () => {
   it("devuelve solo palabras limpias, sin repetidas ni stopwords", () => {
     const q = armarConsultaTexto(["SQL", "Power BI", "sql"], "Analista de datos & (reportes)");
