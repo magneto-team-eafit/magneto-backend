@@ -1,17 +1,20 @@
 import { Router } from 'express';
 import { PrismaPostulacionRepository } from '../../../infrastructure/repositories/PrismaPostulacionRepository';
 import { PostulacionUseCase } from '../../../application/use-cases/PostulacionUseCase';
+import { authMiddleware } from '../../perfil/middlewares/authMiddleware';
 
 const router = Router();
 const repo = new PrismaPostulacionRepository();
 const useCase = new PostulacionUseCase(repo);
 
-// GET /notificaciones/:usuarioId
-// Lista las notificaciones de un usuario. Con ?soloNoLeidas=true solo devuelve
-// las que aun no ha leido.
-router.get('/:usuarioId', async (req, res) => {
+// Todas las rutas de notificaciones exigen token; el usuarioId sale del token.
+router.use(authMiddleware);
+
+// GET /notificaciones  -> notificaciones del usuario autenticado.
+// Con ?soloNoLeidas=true solo devuelve las que aun no ha leido.
+router.get('/', async (req, res) => {
   try {
-    const { usuarioId } = req.params;
+    const usuarioId = req.usuarioId as string;
     const soloNoLeidas = req.query.soloNoLeidas === 'true';
     const notificaciones = await useCase.listarNotificaciones(usuarioId, soloNoLeidas);
     return res.json(notificaciones);
@@ -22,17 +25,15 @@ router.get('/:usuarioId', async (req, res) => {
 });
 
 // PATCH /notificaciones/:id/leida
-// Marca una notificacion como leida. Requiere el usuarioId en el cuerpo para
-// evitar que un usuario marque notificaciones que no son suyas.
+// Marca una notificacion como leida. El usuarioId sale del token, y el
+// repositorio solo actualiza si la notificacion es de ese usuario.
 router.patch('/:id/leida', async (req, res) => {
   try {
+    const usuarioId = req.usuarioId as string;
     const { id } = req.params;
-    const { usuarioId } = req.body;
-    if (!usuarioId) {
-      return res.status(400).json({ error: 'usuarioId es requerido' });
-    }
     const actualizada = await useCase.marcarNotificacionLeida(id, usuarioId);
     if (!actualizada) {
+      // No existe o no es del usuario: en ambos casos 404 (no revelamos cual).
       return res.status(404).json({ error: 'La notificación no existe' });
     }
     return res.json({ ok: true });
