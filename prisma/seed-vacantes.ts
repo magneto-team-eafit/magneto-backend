@@ -1,6 +1,6 @@
 // Ejecutar con: npx tsx prisma/seed-vacantes.ts
 // Requiere: npm install csv-parse
-// Requiere que data/postings.csv exista (dataset de Kaggle, no se commitea).
+// Requiere que data/Recruiting_Dataset_spanish.csv exista
 
 import "dotenv/config";
 import fs from "fs";
@@ -8,46 +8,27 @@ import path from "path";
 import { parse } from "csv-parse";
 import { prisma } from "../src/infrastructure/database/PrismaClient";
 
-const RUTA_CSV = path.join(__dirname, "../data/postings.csv");
+const RUTA_CSV = path.join(__dirname, "data/Recruiting_Dataset_spanish.csv");
 const TAMANO_LOTE = 500;
 
-// Shape de una fila cruda del CSV. Ajusta estos nombres si al abrir
-// postings.csv los headers reales son distintos.
+// Shape adaptado a los encabezados (en portugués) del dataset de Kaggle Colombia
 interface FilaCSV {
-    title: string;
-    company_name: string;
-    location: string;
-    formatted_work_type: string;
-    remote_allowed: string;
-    formatted_experience_level: string;
-    min_salary: string;
-    max_salary: string;
-    currency: string;
-    description: string;
-    job_posting_url: string;
-    listed_time: string;
-}
-
-function mapearModalidad(fila: FilaCSV): string | null {
-    if (fila.remote_allowed === "1" || fila.remote_allowed?.toLowerCase() === "true") {
-        return "remoto";
-    }
-    if (!fila.formatted_work_type) return null;
-    return fila.formatted_work_type.toLowerCase().includes("remote")
-        ? "remoto"
-        : "presencial";
-}
-
-function aNumeroONulo(valor: string): number | null {
-    if (!valor) return null;
-    const numero = Number(valor);
-    return Number.isFinite(numero) ? Math.round(numero) : null;
+    "Site ": string; // Ojo: en el CSV original esta columna tiene un espacio al final
+    "nome da vaga": string;
+    "nome da empresa": string;
+    "tamanho da empresa": string;
+    "linguagem": string;
+    "pais": string;
+    "estado": string;
+    "cidade da vaga": string;
+    "descrição": string;
+    [key: string]: any; // Para ignorar la lista dinámica de "requisito_X"
 }
 
 async function seed() {
     if (!fs.existsSync(RUTA_CSV)) {
         console.error(`No se encontro el archivo: ${RUTA_CSV}`);
-        console.error("Descarga postings.csv del dataset de Kaggle y ponlo en data/postings.csv");
+        console.error("Asegúrate de colocar Recruiting_Dataset_spanish.csv en la carpeta data/");
         process.exit(1);
     }
 
@@ -55,29 +36,45 @@ async function seed() {
     let totalInsertadas = 0;
     let totalDescartadas = 0;
 
+    // Se cambia el delimitador a ';' porque así viene el CSV de este dataset
     const parser = fs
         .createReadStream(RUTA_CSV)
-        .pipe(parse({ columns: true, skip_empty_lines: true }));
+        .pipe(parse({ columns: true, skip_empty_lines: true, delimiter: ';' }));
 
     for await (const fila of parser as AsyncIterable<FilaCSV>) {
-        if (!fila.title?.trim() || !fila.company_name?.trim()) {
+        const titulo = fila["nome da vaga"];
+        const empresa = fila["nome da empresa"];
+
+        if (!titulo?.trim() || !empresa?.trim()) {
             totalDescartadas++;
             continue;
         }
 
+        // Formatear ubicación como "Ciudad, Estado" (ej. "Medellín, Antioquia")
+        const ciudad = fila["cidade da vaga"]?.trim() || "";
+        const estado = fila["estado"]?.trim() || "";
+        const ubicacion = [ciudad, estado].filter(Boolean).join(", ");
+
+        const descripcion = (fila["descrição"] || "").slice(0, 5000);
+        const urlOriginal = (fila["Site "] || "").trim();
+
+        // Inferir modalidad si mencionan "remot" (remoto/remote) en el título o descripción
+        const textoParaModalidad = `${titulo} ${descripcion}`.toLowerCase();
+        const modalidad = textoParaModalidad.includes("remot") ? "remoto" : "presencial";
+
         lote.push({
-            titulo: fila.title.trim().slice(0, 300),
-            empresa: fila.company_name.trim().slice(0, 300),
-            ubicacion: fila.location?.trim() || null,
-            modalidad: mapearModalidad(fila),
-            nivelExperiencia: fila.formatted_experience_level || null,
-            salarioMin: aNumeroONulo(fila.min_salary),
-            salarioMax: aNumeroONulo(fila.max_salary),
-            moneda: fila.currency || null,
-            descripcion: (fila.description || "").slice(0, 5000),
-            urlOriginal: fila.job_posting_url || null,
-            fuente: "kaggle-linkedin",
-            fechaPublicacion: fila.listed_time ? new Date(Number(fila.listed_time)) : null,
+            titulo: titulo.trim().slice(0, 300),
+            empresa: empresa.trim().slice(0, 300),
+            ubicacion: ubicacion || null,
+            modalidad: modalidad,
+            nivelExperiencia: "Entry level", // El dataset no trae seniority, dejamos un valor por defecto
+            salarioMin: null, // No hay salarios numéricos en este dataset
+            salarioMax: null,
+            moneda: "COP",
+            descripcion: descripcion,
+            urlOriginal: urlOriginal || null,
+            fuente: "dataset-colombia-kaggle",
+            fechaPublicacion: new Date(),
         });
 
         if (lote.length >= TAMANO_LOTE) {
