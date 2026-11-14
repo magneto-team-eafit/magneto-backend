@@ -46,3 +46,5 @@ app.use((err: { type?: string }, req: Request, res: Response, _next: NextFunctio
 app.listen(env.puerto, () => {
   console.log(`Servidor escuchando en http://localhost:${env.puerto}`);
 });
+
+export default app;
