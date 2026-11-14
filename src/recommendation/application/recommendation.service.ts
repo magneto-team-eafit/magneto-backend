@@ -1,8 +1,8 @@
 import { Prisma } from "@prisma/client";
-import { armarConsultaTexto, calcularScore, esRelevante } from "./scoring.service";
+import { armarConsultaTexto, calcularScore, esRelevante, extraerPalabrasSector } from "./scoring.service";
 import { RecomendacionResultado } from "../domain/recommendation.types";
 import { prisma } from "../../infrastructure/database/PrismaClient";
-import { buscarVacantesCandidatas } from "../infrastructure/vacantesCandidatas";
+import { buscarVacantesCandidatas, calcularFrecuenciasPalabras } from "../infrastructure/vacantesCandidatas";
 
 const MAX_RECOMENDACIONES = 20;
 // Solo guardamos las mejores en el historial, y no mas de una vez cada pocos
@@ -51,16 +51,23 @@ export async function obtenerRecomendacionesPorUsuarioId(
     ubicacion: perfil.ubicacion,
   });
 
+  // Que tan comun es cada palabra del sector en las vacantes (para pesarla).
+  const frecuencias = await calcularFrecuenciasPalabras(extraerPalabrasSector(textoPerfil));
+
   const recomendaciones: RecomendacionResultado[] = vacantes
     .map((vacante) => {
-      const r = calcularScore(datosUsuario, {
-        id: vacante.id,
-        titulo: vacante.titulo,
-        empresa: vacante.empresa,
-        ubicacion: vacante.ubicacion,
-        modalidad: vacante.modalidad,
-        descripcion: vacante.descripcion,
-      });
+      const r = calcularScore(
+        datosUsuario,
+        {
+          id: vacante.id,
+          titulo: vacante.titulo,
+          empresa: vacante.empresa,
+          ubicacion: vacante.ubicacion,
+          modalidad: vacante.modalidad,
+          descripcion: vacante.descripcion,
+        },
+        frecuencias,
+      );
       return {
         vacanteId: vacante.id,
         titulo: vacante.titulo,

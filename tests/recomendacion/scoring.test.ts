@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   PESOS_SCORING,
+  pesoPorRareza,
   armarConsultaTexto,
   calcularScore,
   esRelevante,
@@ -90,6 +91,30 @@ describe("sector laboral", () => {
   it("una vacante de otro sector no es relevante aunque coincida ciudad y modalidad", () => {
     const r = calcularScore(medico, vacante({ titulo: "Cajero fines de semana", descripcion: "Atencion a clientes en caja" }));
     expect(esRelevante(r.desglose)).toBe(false);
+  });
+});
+
+describe("palabras comunes", () => {
+  const medico = { ...usuario, habilidades: [], textoPerfil: "Medicina general" };
+  const gerente = vacante({ titulo: "Gerente general", descripcion: "Direccion de tienda" });
+
+  it("pesoPorRareza: una palabra muy comun casi no vale y una rara vale completo", () => {
+    expect(pesoPorRareza(undefined)).toBe(1);
+    expect(pesoPorRareza(0.001)).toBeGreaterThan(0.95);
+    expect(pesoPorRareza(0.5)).toBe(0.2);
+  });
+
+  it("la palabra comun 'general' puntua menos que la distintiva 'medicina'", () => {
+    const frecuencias = new Map([["medicina", 0.01], ["general", 0.4]]);
+    const porGeneral = calcularScore(medico, gerente, frecuencias);
+    const porMedicina = calcularScore(medico, vacante({ titulo: "Medicina interna", descripcion: "Clinica" }), frecuencias);
+    expect(porMedicina.desglose.palabrasClave).toBeGreaterThan(porGeneral.desglose.palabrasClave);
+    expect(esRelevante(porGeneral.desglose)).toBe(false);
+  });
+
+  it("el motivo nombra las palabras que coincidieron", () => {
+    const r = calcularScore(medico, vacante({ titulo: "Medicina general", descripcion: "Clinica" }));
+    expect(r.motivos.join(" ")).toContain("medicina");
   });
 });
 

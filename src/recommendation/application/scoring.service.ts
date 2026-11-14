@@ -15,13 +15,13 @@ export const PESOS_SCORING = {
 
 // Con cuantas coincidencias consideramos el criterio "completo". Sin esto,
 // quien tiene 15 habilidades nunca llegaria a un puntaje alto.
-const HABILIDADES_PARA_MAXIMO = 5;
+const HABILIDADES_PARA_MAXIMO = 3;
 const PALABRAS_PARA_MAXIMO = 6;
 
 // Sin habilidades coincidentes, una vacante solo se recomienda si coincide al
 // menos en esta fraccion del puntaje de palabras clave (evita recomendar por
 // una palabra suelta).
-const MINIMO_PALABRAS_SIN_HABILIDADES = 0.4;
+const MINIMO_PALABRAS_SIN_HABILIDADES = 0.5;
 
 const STOPWORDS = new Set([
   "de", "en", "el", "la", "los", "las", "un", "una", "y", "o", "con", "para",
@@ -85,24 +85,54 @@ function calcularHabilidades(habilidades: string[], textoVacante: string): { pun
 const PUNTOS_TITULO = 2;
 const PUNTOS_DESCRIPCION = 1;
 
-function calcularPalabrasClave(textoPerfil: string, titulo: string, descripcion: string): number {
-  const palabras = new Set(
-    normalizarTexto(textoPerfil)
-      .split(" ")
-      .filter((p) => p.length > 3 && !STOPWORDS.has(p)),
-  );
-  if (palabras.size === 0) return 0;
+// Palabras del sector de la persona (cargos y estudios), sin repetidas.
+export function extraerPalabrasSector(textoPerfil: string): string[] {
+  const palabras = normalizarTexto(textoPerfil)
+    .split(" ")
+    .filter((p) => p.length > 3 && !STOPWORDS.has(p));
+  return [...new Set(palabras)];
+}
+
+// Cuanto vale una palabra segun que tan comun es en las vacantes: "general" o
+// "analista" aparecen en muchisimas y casi no distinguen un sector de otro.
+// "ratio" es la fraccion de vacantes que la contienen (0 a 1). Sin dato, vale 1.
+const FACTOR_RAREZA = 5;
+const RAREZA_MINIMA = 0.2;
+export function pesoPorRareza(ratio: number | undefined): number {
+  if (ratio === undefined) return 1;
+  return Math.max(RAREZA_MINIMA, 1 - ratio * FACTOR_RAREZA);
+}
+
+// Mapa palabra -> fraccion de vacantes que la contienen.
+export type FrecuenciaPalabras = Map<string, number>;
+
+function calcularPalabrasClave(
+  textoPerfil: string,
+  titulo: string,
+  descripcion: string,
+  frecuencias?: FrecuenciaPalabras,
+): { puntos: number; coinciden: string[] } {
+  const palabras = extraerPalabrasSector(textoPerfil);
+  if (palabras.length === 0) return { puntos: 0, coinciden: [] };
 
   const textoTitulo = normalizarTexto(titulo);
   const textoDescripcion = normalizarTexto(descripcion);
   let suma = 0;
+  const coinciden: { palabra: string; peso: number }[] = [];
   for (const p of palabras) {
-    if (contieneFrase(textoTitulo, p)) suma += PUNTOS_TITULO;
-    else if (contieneFrase(textoDescripcion, p)) suma += PUNTOS_DESCRIPCION;
+    const enTitulo = contieneFrase(textoTitulo, p);
+    if (!enTitulo && !contieneFrase(textoDescripcion, p)) continue;
+    const peso = pesoPorRareza(frecuencias?.get(p));
+    suma += (enTitulo ? PUNTOS_TITULO : PUNTOS_DESCRIPCION) * peso;
+    coinciden.push({ palabra: p, peso });
   }
 
-  const objetivo = Math.min(palabras.size, PALABRAS_PARA_MAXIMO) * 1.5;
-  return redondear(Math.min(1, suma / objetivo) * PESOS_SCORING.palabrasClave);
+  const objetivo = Math.min(palabras.length, PALABRAS_PARA_MAXIMO);
+  return {
+    puntos: redondear(Math.min(1, suma / objetivo) * PESOS_SCORING.palabrasClave),
+    // Para el motivo mostramos primero las palabras mas distintivas.
+    coinciden: coinciden.sort((x, y) => y.peso - x.peso).map((c) => c.palabra),
+  };
 }
 
 function calcularUbicacion(
@@ -141,13 +171,15 @@ function calcularModalidad(modalidadUsuario?: string | null, modalidadVacante?: 
 export function calcularScore(
   usuario: DatosScoringUsuario,
   vacante: DatosScoringVacante,
+  frecuencias?: FrecuenciaPalabras,
 ): { score: number; desglose: DesgloseScore; motivos: string[] } {
   const textoVacante = `${vacante.titulo} ${vacante.descripcion}`;
   const hab = calcularHabilidades(usuario.habilidades, textoVacante);
 
+  const sector = calcularPalabrasClave(usuario.textoPerfil, vacante.titulo, vacante.descripcion, frecuencias);
   const desglose: DesgloseScore = {
     habilidades: hab.puntos,
-    palabrasClave: calcularPalabrasClave(usuario.textoPerfil, vacante.titulo, vacante.descripcion),
+    palabrasClave: sector.puntos,
     ubicacion: calcularUbicacion(usuario.ubicacion, vacante),
     modalidad: calcularModalidad(usuario.modalidadPreferida, vacante.modalidad),
     maximos: { ...PESOS_SCORING },
@@ -163,7 +195,10 @@ export function calcularScore(
     const lista = hab.coinciden.slice(0, 4).join(", ");
     motivos.push(`Pide habilidades que tienes: ${lista}.`);
   }
-  if (desglose.palabrasClave > 0) motivos.push("Comparte palabras clave con tu experiencia y estudios.");
+  if (desglose.palabrasClave > 0) {
+    const lista = sector.coinciden.slice(0, 3).join(", ");
+    motivos.push(`Coincide con tu sector (${lista}).`);
+  }
   if (tipoModalidad(vacante.modalidad) === "remoto") {
     motivos.push("Es remoto: no depende de tu ciudad.");
   } else if (desglose.ubicacion > 0) {
