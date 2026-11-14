@@ -52,26 +52,4 @@ router.get("/", authMiddleware, PerfilController.obtener);
  */
 router.put("/paso/:paso", authMiddleware, PerfilController.guardarPaso);
 
-/**
- * @openapi
- * /api/perfil:
- *   put:
- *     summary: Actualiza la información completa del perfil
- *     tags: [Perfil]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *     responses:
- *       200:
- *         description: Perfil actualizado exitosamente
- *       401:
- *         description: No autorizado
- */
-router.put("/", authMiddleware, PerfilController.actualizar);
-
 export default router;
