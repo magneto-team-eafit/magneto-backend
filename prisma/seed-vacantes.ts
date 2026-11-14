@@ -1,6 +1,6 @@
 // Ejecutar con: npx tsx prisma/seed-vacantes.ts
 // Requiere: npm install csv-parse
-// Requiere que data/Recruiting_Dataset_spanish.csv exista
+// Requiere que prisma/data/Recruiting_Dataset_spanish.csv exista
 
 import "dotenv/config";
 import fs from "fs";
@@ -11,9 +11,8 @@ import { prisma } from "../src/infrastructure/database/PrismaClient";
 const RUTA_CSV = path.join(__dirname, "data/Recruiting_Dataset_spanish.csv");
 const TAMANO_LOTE = 500;
 
-// Shape adaptado a los encabezados (en portugués) del dataset de Kaggle Colombia
 interface FilaCSV {
-    "Site ": string; // Ojo: en el CSV original esta columna tiene un espacio al final
+    "Site ": string;
     "nome da vaga": string;
     "nome da empresa": string;
     "tamanho da empresa": string;
@@ -22,21 +21,42 @@ interface FilaCSV {
     "estado": string;
     "cidade da vaga": string;
     "descrição": string;
-    [key: string]: any; // Para ignorar la lista dinámica de "requisito_X"
+    "data da postagem": string; // Nueva columna para la fecha
+    [key: string]: any;
+}
+
+// Función para normalizar texto (quitar tildes y dejar en minúscula)
+function normalizar(texto: string): string {
+    return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+// Función para unificar las variantes de Bogotá
+function normalizarCiudad(ciudad: string, estado: string): string | null {
+    if (!ciudad || ciudad === "0") return null;
+    let ciudadNorm = normalizar(ciudad);
+
+    if (ciudadNorm.includes("bogota")) {
+        return "Bogotá D.C., Bogotá D.C.";
+    }
+
+    const estadoLimpio = estado && estado !== "0" ? estado.trim() : "";
+    return estadoLimpio ? `${ciudad.trim()}, ${estadoLimpio}` : ciudad.trim();
 }
 
 async function seed() {
     if (!fs.existsSync(RUTA_CSV)) {
         console.error(`No se encontro el archivo: ${RUTA_CSV}`);
-        console.error("Asegúrate de colocar Recruiting_Dataset_spanish.csv en la carpeta data/");
         process.exit(1);
     }
+
+    // Borramos los datos anteriores para evitar duplicados al correr el seed de nuevo
+    console.log("Limpiando base de datos...");
+    await prisma.vacante.deleteMany({});
 
     let lote: any[] = [];
     let totalInsertadas = 0;
     let totalDescartadas = 0;
 
-    // Se cambia el delimitador a ';' porque así viene el CSV de este dataset
     const parser = fs
         .createReadStream(RUTA_CSV)
         .pipe(parse({ columns: true, skip_empty_lines: true, delimiter: ';' }));
@@ -50,31 +70,52 @@ async function seed() {
             continue;
         }
 
-        // Formatear ubicación como "Ciudad, Estado" (ej. "Medellín, Antioquia")
-        const ciudad = fila["cidade da vaga"]?.trim() || "";
-        const estado = fila["estado"]?.trim() || "";
-        const ubicacion = [ciudad, estado].filter(Boolean).join(", ");
-
+        const ubicacion = normalizarCiudad(fila["cidade da vaga"], fila["estado"]);
         const descripcion = (fila["descrição"] || "").slice(0, 5000);
         const urlOriginal = (fila["Site "] || "").trim();
 
-        // Inferir modalidad si mencionan "remot" (remoto/remote) en el título o descripción
         const textoParaModalidad = `${titulo} ${descripcion}`.toLowerCase();
-        const modalidad = textoParaModalidad.includes("remot") ? "remoto" : "presencial";
+        let modalidad = "presencial";
+        if (textoParaModalidad.includes("híbrid") || textoParaModalidad.includes("hibrid")) {
+            modalidad = "hibrido";
+        } else if (textoParaModalidad.includes("remot") || textoParaModalidad.includes("teletrabajo")) {
+            modalidad = "remoto";
+        }
+
+        // Inferir nivel de experiencia
+        const tituloNorm = normalizar(titulo);
+        let nivelExperiencia = null;
+        if (tituloNorm.includes("junior") || tituloNorm.includes("jr") || tituloNorm.includes("practicante") || tituloNorm.includes("auxiliar")) {
+            nivelExperiencia = "Entry level";
+        } else if (tituloNorm.includes("senior") || tituloNorm.includes("sr") || tituloNorm.includes("lider") || tituloNorm.includes("jefe") || tituloNorm.includes("director")) {
+            nivelExperiencia = "Mid-Senior level";
+        }
+
+        // Procesar fecha de publicación
+        let fechaPublicacion = new Date();
+        const fechaCruda = fila["data da postagem"];
+        if (fechaCruda && fechaCruda !== "0") {
+            const match = fechaCruda.match(/(\d{1,2})\/(\d{1,2})/);
+            if (match) {
+                const dia = parseInt(match[1]);
+                const mes = parseInt(match[2]) - 1;
+                fechaPublicacion = new Date(new Date().getFullYear(), mes, dia);
+            }
+        }
 
         lote.push({
             titulo: titulo.trim().slice(0, 300),
             empresa: empresa.trim().slice(0, 300),
-            ubicacion: ubicacion || null,
+            ubicacion: ubicacion,
             modalidad: modalidad,
-            nivelExperiencia: "Entry level", // El dataset no trae seniority, dejamos un valor por defecto
-            salarioMin: null, // No hay salarios numéricos en este dataset
+            nivelExperiencia: nivelExperiencia,
+            salarioMin: null, // Como dijo Claude, mejor dejamos null a inventar datos falsos
             salarioMax: null,
             moneda: "COP",
             descripcion: descripcion,
             urlOriginal: urlOriginal || null,
             fuente: "dataset-colombia-kaggle",
-            fechaPublicacion: new Date(),
+            fechaPublicacion: fechaPublicacion,
         });
 
         if (lote.length >= TAMANO_LOTE) {
