@@ -16,7 +16,12 @@ export const PESOS_SCORING = {
 // Con cuantas coincidencias consideramos el criterio "completo". Sin esto,
 // quien tiene 15 habilidades nunca llegaria a un puntaje alto.
 const HABILIDADES_PARA_MAXIMO = 5;
-const PALABRAS_PARA_MAXIMO = 8;
+const PALABRAS_PARA_MAXIMO = 6;
+
+// Sin habilidades coincidentes, una vacante solo se recomienda si coincide al
+// menos en esta fraccion del puntaje de palabras clave (evita recomendar por
+// una palabra suelta).
+const MINIMO_PALABRAS_SIN_HABILIDADES = 0.4;
 
 const STOPWORDS = new Set([
   "de", "en", "el", "la", "los", "las", "un", "una", "y", "o", "con", "para",
@@ -74,7 +79,13 @@ function calcularHabilidades(habilidades: string[], textoVacante: string): { pun
   return { puntos: redondear(fraccion * PESOS_SCORING.habilidades), coinciden };
 }
 
-function calcularPalabrasClave(textoPerfil: string, textoVacante: string): number {
+// "Sector laboral": palabras del cargo y de los estudios de la persona.
+// Una palabra que aparece en el TITULO de la vacante vale el doble que una
+// que solo aparece en la descripcion, porque el titulo dice a que se dedica el cargo.
+const PUNTOS_TITULO = 2;
+const PUNTOS_DESCRIPCION = 1;
+
+function calcularPalabrasClave(textoPerfil: string, titulo: string, descripcion: string): number {
   const palabras = new Set(
     normalizarTexto(textoPerfil)
       .split(" ")
@@ -82,15 +93,16 @@ function calcularPalabrasClave(textoPerfil: string, textoVacante: string): numbe
   );
   if (palabras.size === 0) return 0;
 
-  const texto = normalizarTexto(textoVacante);
-  let coincidencias = 0;
+  const textoTitulo = normalizarTexto(titulo);
+  const textoDescripcion = normalizarTexto(descripcion);
+  let suma = 0;
   for (const p of palabras) {
-    if (contieneFrase(texto, p)) coincidencias++;
+    if (contieneFrase(textoTitulo, p)) suma += PUNTOS_TITULO;
+    else if (contieneFrase(textoDescripcion, p)) suma += PUNTOS_DESCRIPCION;
   }
 
-  const objetivo = Math.min(palabras.size, PALABRAS_PARA_MAXIMO);
-  const fraccion = Math.min(1, coincidencias / objetivo);
-  return redondear(fraccion * PESOS_SCORING.palabrasClave);
+  const objetivo = Math.min(palabras.size, PALABRAS_PARA_MAXIMO) * 1.5;
+  return redondear(Math.min(1, suma / objetivo) * PESOS_SCORING.palabrasClave);
 }
 
 function calcularUbicacion(
@@ -135,7 +147,7 @@ export function calcularScore(
 
   const desglose: DesgloseScore = {
     habilidades: hab.puntos,
-    palabrasClave: calcularPalabrasClave(usuario.textoPerfil, textoVacante),
+    palabrasClave: calcularPalabrasClave(usuario.textoPerfil, vacante.titulo, vacante.descripcion),
     ubicacion: calcularUbicacion(usuario.ubicacion, vacante),
     modalidad: calcularModalidad(usuario.modalidadPreferida, vacante.modalidad),
     maximos: { ...PESOS_SCORING },
@@ -164,11 +176,14 @@ export function calcularScore(
   return { score, desglose, motivos };
 }
 
-// Una vacante es relevante si coincide en contenido (habilidades o palabras
-// clave). Solo coincidir en ciudad o modalidad no basta: asi no recomendamos
-// "cualquier cosa remota".
+// Una vacante es relevante si coincide en contenido: alguna habilidad, o un
+// buen nivel de palabras clave del sector. Coincidir solo en ciudad o
+// modalidad no basta.
 export function esRelevante(desglose: DesgloseScore): boolean {
-  return desglose.habilidades > 0 || desglose.palabrasClave > 0;
+  return (
+    desglose.habilidades > 0 ||
+    desglose.palabrasClave >= MINIMO_PALABRAS_SIN_HABILIDADES * desglose.maximos.palabrasClave
+  );
 }
 
 // Texto para la busqueda full-text de Postgres: habilidades + palabras
