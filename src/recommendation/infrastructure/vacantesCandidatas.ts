@@ -58,3 +58,29 @@ export async function buscarVacantesCandidatas(params: {
   if (ids.size === 0) return [];
   return prisma.vacante.findMany({ where: { id: { in: [...ids] } } });
 }
+
+// Para cada palabra, que fraccion de TODAS las vacantes la contiene (0 a 1).
+// Sirve para que las palabras muy comunes ("general", "analista") valgan poco.
+// (SQL: un COUNT(*) con filtro por palabra, dividido entre el total de filas;
+// usa el mismo indice GIN de la busqueda.)
+export async function calcularFrecuenciasPalabras(palabras: string[]): Promise<Map<string, number>> {
+  const frecuencias = new Map<string, number>();
+  if (palabras.length === 0) return frecuencias;
+
+  const total = await prisma.vacante.count();
+  if (total === 0) return frecuencias;
+
+  await Promise.all(
+    palabras.map(async (palabra) => {
+      // La palabra ya viene limpia (solo letras y numeros).
+      const [fila] = await prisma.$queryRaw<{ cantidad: bigint }[]>(Prisma.sql`
+        SELECT COUNT(*) AS cantidad
+        FROM vacantes v
+        WHERE to_tsvector('spanish', v.titulo || ' ' || v.empresa || ' ' || v.descripcion)
+              @@ plainto_tsquery('spanish', ${palabra})
+      `);
+      frecuencias.set(palabra, Number(fila.cantidad) / total);
+    }),
+  );
+  return frecuencias;
+}
