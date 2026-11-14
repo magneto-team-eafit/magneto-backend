@@ -18,9 +18,10 @@ router.use(authMiddleware);
 
 /**
  * @openapi
- * /api/postulaciones:
+ * /postulaciones:
  *   post:
- *     summary: Crea una nueva postulación a una vacante
+ *     summary: Crea una postulación a una vacante
+ *     description: El usuario sale del token. La postulación nace en estado POSTULADO.
  *     tags: [Postulaciones]
  *     security:
  *       - bearerAuth: []
@@ -37,13 +38,15 @@ router.use(authMiddleware);
  *                 description: UUID de la vacante
  *     responses:
  *       201:
- *         description: Postulación creada exitosamente
+ *         description: Postulación creada
  *       400:
  *         description: Falta vacanteId
+ *       401:
+ *         description: Token faltante, inválido o vencido
  *       404:
- *         description: Vacante no encontrada
+ *         description: La vacante no existe
  *       409:
- *         description: Postulación duplicada
+ *         description: Ya te postulaste a esta vacante
  *       500:
  *         description: Error interno del servidor
  */
@@ -69,6 +72,43 @@ router.post('/', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /postulaciones/resumen:
+ *   get:
+ *     summary: Reporte del tablero del usuario
+ *     description: Total de postulaciones, cantidad por estado y tasa de avance (proporción que ya salió de POSTULADO, entre 0 y 1).
+ *     tags: [Postulaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Resumen del tablero
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: integer
+ *                 porEstado:
+ *                   type: object
+ *                   properties:
+ *                     POSTULADO:
+ *                       type: integer
+ *                     EN_REVISION:
+ *                       type: integer
+ *                     ENTREVISTA:
+ *                       type: integer
+ *                     DESCARTADO:
+ *                       type: integer
+ *                 tasaAvance:
+ *                   type: number
+ *       401:
+ *         description: Token faltante, inválido o vencido
+ *       500:
+ *         description: Error interno del servidor
+ */
 // GET /postulaciones/resumen  -> reporte del tablero del usuario autenticado.
 router.get('/resumen', async (req, res) => {
   try {
@@ -83,15 +123,18 @@ router.get('/resumen', async (req, res) => {
 
 /**
  * @openapi
- * /api/postulaciones:
+ * /postulaciones:
  *   get:
- *     summary: Obtiene la lista de postulaciones del usuario autenticado
+ *     summary: Lista las postulaciones del usuario autenticado
+ *     description: Cada postulación incluye los datos de su vacante. Van de la más reciente a la más antigua.
  *     tags: [Postulaciones]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Lista de postulaciones obtenida exitosamente
+ *         description: Lista de postulaciones
+ *       401:
+ *         description: Token faltante, inválido o vencido
  *       500:
  *         description: Error interno del servidor
  */
@@ -107,6 +150,47 @@ router.get('/', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /postulaciones/{id}/estado:
+ *   patch:
+ *     summary: Cambia el estado de una postulación
+ *     description: Solo la persona dueña puede cambiarlo. Cada cambio deja una entrada en el registro de actividad y crea una notificación. Una postulación DESCARTADO se puede reabrir.
+ *     tags: [Postulaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID de la postulación
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [estado]
+ *             properties:
+ *               estado:
+ *                 type: string
+ *                 enum: [POSTULADO, EN_REVISION, ENTREVISTA, DESCARTADO]
+ *     responses:
+ *       200:
+ *         description: Postulación con su nuevo estado
+ *       400:
+ *         description: Falta el estado o no es válido
+ *       401:
+ *         description: Token faltante, inválido o vencido
+ *       403:
+ *         description: La postulación es de otra persona
+ *       404:
+ *         description: La postulación no existe
+ *       500:
+ *         description: Error interno del servidor
+ */
 // PATCH /postulaciones/:id/estado  (body: { estado })
 router.patch('/:id/estado', async (req, res) => {
   try {
@@ -133,6 +217,34 @@ router.patch('/:id/estado', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /postulaciones/{id}/actividad:
+ *   get:
+ *     summary: Historial de cambios de una postulación
+ *     description: Registro de actividad (trazabilidad), del más reciente al más antiguo. Solo la persona dueña puede verlo.
+ *     tags: [Postulaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID de la postulación
+ *     responses:
+ *       200:
+ *         description: Lista de eventos de la postulación
+ *       401:
+ *         description: Token faltante, inválido o vencido
+ *       403:
+ *         description: La postulación es de otra persona
+ *       404:
+ *         description: La postulación no existe
+ *       500:
+ *         description: Error interno del servidor
+ */
 // GET /postulaciones/:id/actividad  -> trazabilidad.
 router.get('/:id/actividad', async (req, res) => {
   try {
