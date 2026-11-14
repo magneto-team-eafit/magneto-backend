@@ -8,6 +8,7 @@ import perfilRoutes from "./interfaces/perfil/routes/perfilRoutes";
 import vacanteRoutes from "./interfaces/vacantes/routes/vacanteRoutes";
 import recommendationRoutes from "./recommendation/interfaces/recommendation.routes";
 import postulacionRoutes from "./interfaces/http/routes/postulacionRoutes";
+import notificacionRoutes from "./interfaces/http/routes/notificacionRoutes";
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use("/perfil", perfilRoutes);
 app.use("/vacantes", vacanteRoutes);
 app.use("/recomendaciones", recommendationRoutes);
 app.use("/postulaciones", postulacionRoutes);
+app.use("/notificaciones", notificacionRoutes);
 
 // Manejador final de errores: sin esto, Express devolveria paginas HTML con
 // detalles internos. Aqui toda respuesta de error es un JSON generico.

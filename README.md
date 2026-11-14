@@ -67,8 +67,12 @@ Requisitos: Node.js 20 o superior (el equipo usa la 24), PostgreSQL 17 y npm.
 | `GET /vacantes/:id` | Detalle de una vacante | No |
 | `GET /recomendaciones/:usuarioId` | Vacantes recomendadas con puntaje, motivos y desglose | No |
 | `GET /recomendaciones/:usuarioId/historial` | Historial de recomendaciones | No |
-| `POST /postulaciones` | Postularse a una vacante (`usuarioId`, `vacanteId`) | No |
+| `POST /postulaciones` | Postularse a una vacante (`usuarioId`, `vacanteId`). Si ya existe, devuelve `409` | No |
 | `GET /postulaciones/:usuarioId` | Postulaciones del usuario | No |
+| `PATCH /postulaciones/:id/estado` | Cambiar el estado de una postulación (`estado`: `POSTULADO`, `EN_REVISION`, `ENTREVISTA`, `DESCARTADO`) | No |
+| `GET /postulaciones/:id/actividad` | Registro de actividad (trazabilidad) de una postulación | No |
+| `GET /notificaciones/:usuarioId` | Notificaciones del usuario (`?soloNoLeidas=true` para filtrar) | No |
+| `PATCH /notificaciones/:id/leida` | Marcar una notificación como leída (`usuarioId` en el cuerpo) | No |
 
 ## Dataset de vacantes
 
@@ -90,7 +94,8 @@ duplicar registros, porque cada vacante tiene su URL original como valor único.
 ## Estado y pendientes
 
 - Cambiar el estado de una postulación (en revisión, entrevista, descartado), notificaciones y registro de
-  actividad: pendientes (vertical D).
+  actividad: implementado (vertical D). Los botones del tablero del frontend usan `PATCH /postulaciones/:id/estado`;
+  cada cambio genera una notificación y una entrada en el registro de actividad.
 - Pesos configurables del recomendador, descartar vacantes y revisión de la fórmula del puntaje con el nuevo
   dataset: pendientes (vertical C).
 - Dataset de vacantes de Colombia, en español, con salarios en COP: pendiente (vertical B).

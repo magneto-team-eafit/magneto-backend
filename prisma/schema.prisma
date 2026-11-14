@@ -22,6 +22,7 @@ model Usuario {
 
   postulaciones Postulacion[]
   historialRecomendaciones HistorialRecomendacion[]
+  notificaciones Notificacion[]
 
   @@map("usuarios")
 }
@@ -125,8 +126,44 @@ model Postulacion {
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   vacante Vacante @relation(fields: [vacanteId], references: [id], onDelete: Cascade)
 
+  actividades RegistroActividad[]
+
   @@unique([usuarioId, vacanteId]) // Evita que un usuario se postule dos veces a la misma vacante
   @@map("postulaciones")
+}
+
+/// Registro de actividad (trazabilidad) de una postulacion: cada cambio de
+/// estado deja aqui una fila con el estado anterior y el nuevo.
+model RegistroActividad {
+  id            String   @id @default(uuid())
+  postulacionId String
+  tipo          String   // "CAMBIO_ESTADO", "POSTULACION_CREADA"
+  estadoAnterior String?
+  estadoNuevo   String?
+  descripcion   String
+  createdAt     DateTime @default(now())
+
+  postulacion Postulacion @relation(fields: [postulacionId], references: [id], onDelete: Cascade)
+
+  @@index([postulacionId, createdAt])
+  @@map("registros_actividad")
+}
+
+/// Notificacion dirigida a un usuario. Se crea, por ejemplo, cuando cambia el
+/// estado de una de sus postulaciones.
+model Notificacion {
+  id        String   @id @default(uuid())
+  usuarioId String
+  tipo      String   // "ESTADO_POSTULACION"
+  titulo    String
+  mensaje   String
+  leida     Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, leida, createdAt])
+  @@map("notificaciones")
 }
 
 
