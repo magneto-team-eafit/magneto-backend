@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { AuthController } from "../controllers/AuthController";
+import { limitadorLogin, limitadorRegistro } from "../middlewares/limitadorIntentos";
 
 const router = Router();
 
@@ -31,8 +32,10 @@ const router = Router();
  *         description: Usuario registrado exitosamente
  *       400:
  *         description: Error de validación en los datos
+ *       429:
+ *         description: Demasiados intentos
  */
-router.post("/registro", AuthController.registrar);
+router.post("/registro", limitadorRegistro, AuthController.registrar);
 
 /**
  * @openapi
@@ -59,7 +62,9 @@ router.post("/registro", AuthController.registrar);
  *         description: Login exitoso. Retorna datos de usuario y token JWT.
  *       401:
  *         description: Credenciales inválidas
+ *       429:
+ *         description: Demasiados intentos
  */
-router.post("/login", AuthController.login);
+router.post("/login", limitadorLogin, AuthController.login);
 
 export default router;

@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { ObtenerPerfil } from "../../../application/perfil/useCases/ObtenerPerfil";
-import { ActualizarPerfil } from "../../../application/perfil/useCases/ActualizarPerfil";
 import { GuardarPasoPerfil, PASOS_PERFIL, PasoPerfil } from "../../../application/perfil/useCases/GuardarPasoPerfil";
 import { PrismaPerfilRepository } from "../../../infrastructure/perfil/repositories/PrismaPerfilRepository";
 import { Perfil, desgloseVacio } from "../../../domain/perfil/entities/Perfil";
@@ -8,7 +7,6 @@ import { ErrorValidacion } from "../../../domain/perfil/errors/ErrorValidacion";
 
 const perfilRepository = new PrismaPerfilRepository();
 const obtenerPerfil = new ObtenerPerfil(perfilRepository);
-const actualizarPerfil = new ActualizarPerfil(perfilRepository);
 const guardarPasoPerfil = new GuardarPasoPerfil(perfilRepository);
 
 // Las fechas viajan como "AAAA-MM-DD", que es lo que usa <input type="date">.
@@ -17,7 +15,7 @@ function fechaATexto(fecha: Date | null): string | null {
 }
 
 // Forma unica de respuesta para GET y PUT del perfil:
-// { perfil, completitud, desglose }
+// { perfil, completitud, desglose, sugerencias }
 function aRespuesta(perfil: Perfil) {
     return {
         perfil: {
@@ -47,6 +45,7 @@ function aRespuesta(perfil: Perfil) {
         },
         completitud: perfil.calcularCompletitud(),
         desglose: perfil.calcularDesglose(),
+        sugerencias: perfil.calcularSugerencias(),
     };
 }
 
@@ -60,12 +59,13 @@ export class PerfilController {
             const perfil = await obtenerPerfil.ejecutar(usuarioId);
 
             if (!perfil) {
-                res.status(200).json({ perfil: null, completitud: 0, desglose: desgloseVacio() });
+                res.status(200).json({ perfil: null, completitud: 0, desglose: desgloseVacio(), sugerencias: [] });
                 return;
             }
 
             res.status(200).json(aRespuesta(perfil));
         } catch (error) {
+            console.error("[perfil] Error inesperado al obtener el perfil:", error);
             res.status(500).json({ error: "Error interno del servidor" });
         }
     }
@@ -88,39 +88,7 @@ export class PerfilController {
                 res.status(400).json({ error: error.message, detalles: error.detalles });
                 return;
             }
-            res.status(500).json({ error: "Error interno del servidor" });
-        }
-    }
-
-    // Ruta anterior (formulario de una sola pagina). Se mantiene mientras el
-    // frontend migra al wizard; despues se puede retirar.
-    static async actualizar(req: Request, res: Response): Promise<void> {
-        try {
-            const usuarioId = req.usuarioId as string;
-            const { nombreCompleto, telefono, ubicacion, resumen, modalidadPreferida, expectativaSalarial, disponibilidad } = req.body;
-
-            if (!nombreCompleto || nombreCompleto.trim().length === 0) {
-                res.status(400).json({ error: "El nombre completo es obligatorio" });
-                return;
-            }
-
-            const perfil = await actualizarPerfil.ejecutar({
-                usuarioId,
-                nombreCompleto,
-                telefono,
-                ubicacion,
-                resumen,
-                modalidadPreferida,
-                expectativaSalarial,
-                disponibilidad,
-            });
-
-            res.status(200).json(aRespuesta(perfil));
-        } catch (error) {
-            if (error instanceof Error) {
-                res.status(400).json({ error: error.message });
-                return;
-            }
+            console.error("[perfil] Error inesperado al guardar un paso:", error);
             res.status(500).json({ error: "Error interno del servidor" });
         }
     }

@@ -1,0 +1,38 @@
+name: CI
+
+# Corre en cada Pull Request hacia main y cuando algo entra a main.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    env:
+      # Valores falsos solo para CI: las pruebas no usan la base de datos real.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      JWT_SECRET: clave-solo-para-ci-0123456789abcdef
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Generar el cliente de Prisma
+        run: npx prisma generate
+
+      - name: Compilar
+        run: npm run build
+
+      - name: Revisar tipos de las pruebas
+        run: npm run test:tipos
+
+      - name: Correr pruebas
+        run: npm test

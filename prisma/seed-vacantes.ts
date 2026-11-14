@@ -1,6 +1,6 @@
 // Ejecutar con: npx tsx prisma/seed-vacantes.ts
 // Requiere: npm install csv-parse
-// Requiere que data/postings.csv exista (dataset de Kaggle, no se commitea).
+// Requiere que prisma/data/Recruiting_Dataset_spanish.csv exista
 
 import "dotenv/config";
 import fs from "fs";
@@ -8,48 +8,50 @@ import path from "path";
 import { parse } from "csv-parse";
 import { prisma } from "../src/infrastructure/database/PrismaClient";
 
-const RUTA_CSV = path.join(__dirname, "../data/postings.csv");
+const RUTA_CSV = path.join(__dirname, "data/Recruiting_Dataset_spanish.csv");
 const TAMANO_LOTE = 500;
 
-// Shape de una fila cruda del CSV. Ajusta estos nombres si al abrir
-// postings.csv los headers reales son distintos.
 interface FilaCSV {
-    title: string;
-    company_name: string;
-    location: string;
-    formatted_work_type: string;
-    remote_allowed: string;
-    formatted_experience_level: string;
-    min_salary: string;
-    max_salary: string;
-    currency: string;
-    description: string;
-    job_posting_url: string;
-    listed_time: string;
+    "Site ": string;
+    "nome da vaga": string;
+    "nome da empresa": string;
+    "tamanho da empresa": string;
+    "linguagem": string;
+    "pais": string;
+    "estado": string;
+    "cidade da vaga": string;
+    "descrição": string;
+    "data da postagem": string; // Nueva columna para la fecha
+    [key: string]: any;
 }
 
-function mapearModalidad(fila: FilaCSV): string | null {
-    if (fila.remote_allowed === "1" || fila.remote_allowed?.toLowerCase() === "true") {
-        return "remoto";
+// Función para normalizar texto (quitar tildes y dejar en minúscula)
+function normalizar(texto: string): string {
+    return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+// Función para unificar las variantes de Bogotá
+function normalizarCiudad(ciudad: string, estado: string): string | null {
+    if (!ciudad || ciudad === "0") return null;
+    let ciudadNorm = normalizar(ciudad);
+
+    if (ciudadNorm.includes("bogota")) {
+        return "Bogotá D.C., Bogotá D.C.";
     }
-    if (!fila.formatted_work_type) return null;
-    return fila.formatted_work_type.toLowerCase().includes("remote")
-        ? "remoto"
-        : "presencial";
-}
 
-function aNumeroONulo(valor: string): number | null {
-    if (!valor) return null;
-    const numero = Number(valor);
-    return Number.isFinite(numero) ? Math.round(numero) : null;
+    const estadoLimpio = estado && estado !== "0" ? estado.trim() : "";
+    return estadoLimpio ? `${ciudad.trim()}, ${estadoLimpio}` : ciudad.trim();
 }
 
 async function seed() {
     if (!fs.existsSync(RUTA_CSV)) {
         console.error(`No se encontro el archivo: ${RUTA_CSV}`);
-        console.error("Descarga postings.csv del dataset de Kaggle y ponlo en data/postings.csv");
         process.exit(1);
     }
+
+    // Borramos los datos anteriores para evitar duplicados al correr el seed de nuevo
+    console.log("Limpiando base de datos...");
+    await prisma.vacante.deleteMany({});
 
     let lote: any[] = [];
     let totalInsertadas = 0;
@@ -57,27 +59,63 @@ async function seed() {
 
     const parser = fs
         .createReadStream(RUTA_CSV)
-        .pipe(parse({ columns: true, skip_empty_lines: true }));
+        .pipe(parse({ columns: true, skip_empty_lines: true, delimiter: ';' }));
 
     for await (const fila of parser as AsyncIterable<FilaCSV>) {
-        if (!fila.title?.trim() || !fila.company_name?.trim()) {
+        const titulo = fila["nome da vaga"];
+        const empresa = fila["nome da empresa"];
+
+        if (!titulo?.trim() || !empresa?.trim()) {
             totalDescartadas++;
             continue;
         }
 
+        const ubicacion = normalizarCiudad(fila["cidade da vaga"], fila["estado"]);
+        const descripcion = (fila["descrição"] || "").slice(0, 5000);
+        const urlOriginal = (fila["Site "] || "").trim();
+
+        const textoParaModalidad = `${titulo} ${descripcion}`.toLowerCase();
+        let modalidad = "presencial";
+        if (textoParaModalidad.includes("híbrid") || textoParaModalidad.includes("hibrid")) {
+            modalidad = "hibrido";
+        } else if (textoParaModalidad.includes("remot") || textoParaModalidad.includes("teletrabajo")) {
+            modalidad = "remoto";
+        }
+
+        // Inferir nivel de experiencia
+        const tituloNorm = normalizar(titulo);
+        let nivelExperiencia = null;
+        if (tituloNorm.includes("junior") || tituloNorm.includes("jr") || tituloNorm.includes("practicante") || tituloNorm.includes("auxiliar")) {
+            nivelExperiencia = "Entry level";
+        } else if (tituloNorm.includes("senior") || tituloNorm.includes("sr") || tituloNorm.includes("lider") || tituloNorm.includes("jefe") || tituloNorm.includes("director")) {
+            nivelExperiencia = "Mid-Senior level";
+        }
+
+        // Procesar fecha de publicación
+        let fechaPublicacion = new Date();
+        const fechaCruda = fila["data da postagem"];
+        if (fechaCruda && fechaCruda !== "0") {
+            const match = fechaCruda.match(/(\d{1,2})\/(\d{1,2})/);
+            if (match) {
+                const dia = parseInt(match[1]);
+                const mes = parseInt(match[2]) - 1;
+                fechaPublicacion = new Date(new Date().getFullYear(), mes, dia);
+            }
+        }
+
         lote.push({
-            titulo: fila.title.trim().slice(0, 300),
-            empresa: fila.company_name.trim().slice(0, 300),
-            ubicacion: fila.location?.trim() || null,
-            modalidad: mapearModalidad(fila),
-            nivelExperiencia: fila.formatted_experience_level || null,
-            salarioMin: aNumeroONulo(fila.min_salary),
-            salarioMax: aNumeroONulo(fila.max_salary),
-            moneda: fila.currency || null,
-            descripcion: (fila.description || "").slice(0, 5000),
-            urlOriginal: fila.job_posting_url || null,
-            fuente: "kaggle-linkedin",
-            fechaPublicacion: fila.listed_time ? new Date(Number(fila.listed_time)) : null,
+            titulo: titulo.trim().slice(0, 300),
+            empresa: empresa.trim().slice(0, 300),
+            ubicacion: ubicacion,
+            modalidad: modalidad,
+            nivelExperiencia: nivelExperiencia,
+            salarioMin: null, // Como dijo Claude, mejor dejamos null a inventar datos falsos
+            salarioMax: null,
+            moneda: "COP",
+            descripcion: descripcion,
+            urlOriginal: urlOriginal || null,
+            fuente: "dataset-colombia-kaggle",
+            fechaPublicacion: fechaPublicacion,
         });
 
         if (lote.length >= TAMANO_LOTE) {
