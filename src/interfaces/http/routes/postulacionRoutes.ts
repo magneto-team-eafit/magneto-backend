@@ -6,7 +6,36 @@ const router = Router();
 const repo = new PrismaPostulacionRepository();
 const useCase = new PostulacionUseCase(repo);
 
-// POST /api/postulaciones
+/**
+ * @openapi
+ * /api/postulaciones:
+ *   post:
+ *     summary: Crea una nueva postulación a una vacante
+ *     tags: [Postulaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [usuarioId, vacanteId]
+ *             properties:
+ *               usuarioId:
+ *                 type: string
+ *                 description: UUID del usuario que se postula
+ *               vacanteId:
+ *                 type: string
+ *                 description: UUID de la vacante
+ *     responses:
+ *       201:
+ *         description: Postulación creada exitosamente
+ *       400:
+ *         description: Falta usuarioId o vacanteId
+ *       500:
+ *         description: Error interno del servidor
+ */
 router.post('/', async (req, res) => {
   try {
     const { usuarioId, vacanteId } = req.body;
@@ -20,7 +49,27 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/postulaciones/:usuarioId
+/**
+ * @openapi
+ * /api/postulaciones/{usuarioId}:
+ *   get:
+ *     summary: Obtiene la lista de postulaciones de un usuario
+ *     tags: [Postulaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: usuarioId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID del usuario
+ *     responses:
+ *       200:
+ *         description: Lista de postulaciones obtenida exitosamente
+ *       500:
+ *         description: Error interno del servidor
+ */
 router.get('/:usuarioId', async (req, res) => {
   try {
     const { usuarioId } = req.params;

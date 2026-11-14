@@ -6,7 +6,8 @@ import perfilRoutes from "./interfaces/perfil/routes/perfilRoutes";
 import vacanteRoutes from "./interfaces/vacantes/routes/vacanteRoutes";
 import recommendationRoutes from "./recommendation/interfaces/recommendation.routes";
 import postulacionRoutes from "./interfaces/http/routes/postulacionRoutes";
-
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger';
 dotenv.config();
 
 const app = express();
@@ -26,6 +27,7 @@ app.use("/perfil", perfilRoutes);
 app.use("/vacantes", vacanteRoutes);
 app.use("/recomendaciones", recommendationRoutes);
 app.use("/postulaciones", postulacionRoutes);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const PORT = process.env.PORT || 4000;
 
