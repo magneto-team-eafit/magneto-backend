@@ -67,12 +67,13 @@ Requisitos: Node.js 20 o superior (el equipo usa la 24), PostgreSQL 17 y npm.
 | `GET /vacantes/:id` | Detalle de una vacante | No |
 | `GET /recomendaciones/:usuarioId` | Vacantes recomendadas con puntaje, motivos y desglose | No |
 | `GET /recomendaciones/:usuarioId/historial` | Historial de recomendaciones | No |
-| `POST /postulaciones` | Postularse a una vacante (`usuarioId`, `vacanteId`). Si ya existe, devuelve `409` | No |
-| `GET /postulaciones/:usuarioId` | Postulaciones del usuario | No |
-| `PATCH /postulaciones/:id/estado` | Cambiar el estado de una postulación (`estado`: `POSTULADO`, `EN_REVISION`, `ENTREVISTA`, `DESCARTADO`) | No |
-| `GET /postulaciones/:id/actividad` | Registro de actividad (trazabilidad) de una postulación | No |
-| `GET /notificaciones/:usuarioId` | Notificaciones del usuario (`?soloNoLeidas=true` para filtrar) | No |
-| `PATCH /notificaciones/:id/leida` | Marcar una notificación como leída (`usuarioId` en el cuerpo) | No |
+| `POST /postulaciones` | Postularse a una vacante (`vacanteId` en el cuerpo; el usuario sale del token). Si ya existe, `409`; si la vacante no existe, `404` | Sí |
+| `GET /postulaciones/resumen` | Reporte del tablero: total, cantidad por estado y tasa de avance | Sí |
+| `GET /postulaciones` | Postulaciones del usuario autenticado | Sí |
+| `PATCH /postulaciones/:id/estado` | Cambiar el estado (`estado`: `POSTULADO`, `EN_REVISION`, `ENTREVISTA`, `DESCARTADO`). Solo el dueño; `403` si no lo es, `404` si no existe | Sí |
+| `GET /postulaciones/:id/actividad` | Registro de actividad (trazabilidad). Solo el dueño | Sí |
+| `GET /notificaciones` | Notificaciones del usuario autenticado (`?soloNoLeidas=true` para filtrar) | Sí |
+| `PATCH /notificaciones/:id/leida` | Marcar una notificación propia como leída | Sí |
 
 ## Dataset de vacantes
 
@@ -96,8 +97,13 @@ duplicar registros, porque cada vacante tiene su URL original como valor único.
 - Cambiar el estado de una postulación (en revisión, entrevista, descartado), notificaciones y registro de
   actividad: implementado (vertical D). Los botones del tablero del frontend usan `PATCH /postulaciones/:id/estado`;
   cada cambio genera una notificación y una entrada en el registro de actividad.
+- Seguridad (vertical D): todas las rutas de `/postulaciones` y `/notificaciones` exigen token (`authMiddleware`).
+  El `usuarioId` sale del token, no del cuerpo ni de la URL, y cada operación verifica que la postulación sea del
+  usuario autenticado (`403` si no lo es).
+- Reporte del tablero: `GET /postulaciones/resumen` (total, cantidad por estado y tasa de avance).
+- Decisión de diseño: **"Descartado" sí puede reabrirse** (moverse a cualquier otro estado). En un proceso
+  simulado es más flexible y menos sorprendente para el usuario; cada reapertura queda en el registro de actividad.
 - Pesos configurables del recomendador, descartar vacantes y revisión de la fórmula del puntaje con el nuevo
   dataset: pendientes (vertical C).
 - Dataset de vacantes de Colombia, en español, con salarios en COP: pendiente (vertical B).
-- Solo las rutas de `/perfil` exigen token; falta protegerlas en el resto.
-- Pruebas automatizadas: pendientes.
+- Pruebas automatizadas: pruebas e2e del flujo de postulaciones en `src/__tests__` (vertical D); el resto, pendiente.
