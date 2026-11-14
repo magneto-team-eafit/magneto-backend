@@ -43,16 +43,36 @@ function normalizarCiudad(ciudad: string, estado: string): string | null {
     return estadoLimpio ? `${ciudad.trim()}, ${estadoLimpio}` : ciudad.trim();
 }
 
+// Guarda un lote: las filas con urlOriginal se insertan o actualizan (UPSERT
+// por la columna unica); las que no tienen url se insertan tal cual.
+async function guardarLote(lote: any[]) {
+    const conUrl = lote.filter((v) => v.urlOriginal);
+    const sinUrl = lote.filter((v) => !v.urlOriginal);
+    if (conUrl.length > 0) {
+        await prisma.$transaction(
+            conUrl.map((v) =>
+                prisma.vacante.upsert({
+                    where: { urlOriginal: v.urlOriginal },
+                    update: v,
+                    create: v,
+                }),
+            ),
+        );
+    }
+    if (sinUrl.length > 0) {
+        await prisma.vacante.createMany({ data: sinUrl });
+    }
+}
+
 async function seed() {
     if (!fs.existsSync(RUTA_CSV)) {
         console.error(`No se encontro el archivo: ${RUTA_CSV}`);
         process.exit(1);
     }
 
-    // Borramos los datos anteriores para evitar duplicados al correr el seed de nuevo
-    console.log("Limpiando base de datos...");
-    await prisma.vacante.deleteMany({});
-
+    // El seed es idempotente: las vacantes con urlOriginal se actualizan (upsert)
+    // en vez de borrarse, asi correrlo de nuevo no duplica ni borra las
+    // postulaciones que ya apuntan a esas vacantes.
     let lote: any[] = [];
     let totalInsertadas = 0;
     let totalDescartadas = 0;
@@ -71,7 +91,18 @@ async function seed() {
         }
 
         const ubicacion = normalizarCiudad(fila["cidade da vaga"], fila["estado"]);
-        const descripcion = (fila["descrição"] || "").slice(0, 5000);
+        const descripcionBase = (fila["descrição"] || "").slice(0, 5000);
+        // Las columnas requisito_1..21 traen lo que pide el cargo (habilidades,
+        // estudios, experiencia). Se agregan a la descripcion para que el
+        // buscador y el recomendador puedan leerlas. "0" significa vacio.
+        const requisitos: string[] = [];
+        for (let i = 1; i <= 21; i++) {
+            const r = String(fila[`requisito_${i}`] ?? "").trim();
+            if (r && r !== "0") requisitos.push(r);
+        }
+        const descripcion = requisitos.length > 0
+            ? `${descripcionBase}\n\nRequisitos:\n- ${requisitos.join("\n- ")}`.slice(0, 9000)
+            : descripcionBase;
         const urlOriginal = (fila["Site "] || "").trim();
 
         const textoParaModalidad = `${titulo} ${descripcion}`.toLowerCase();
@@ -119,19 +150,19 @@ async function seed() {
         });
 
         if (lote.length >= TAMANO_LOTE) {
-            await prisma.vacante.createMany({ data: lote, skipDuplicates: true });
+            await guardarLote(lote);
             totalInsertadas += lote.length;
-            console.log(`Insertadas ${totalInsertadas} vacantes...`);
+            console.log(`Procesadas ${totalInsertadas} vacantes...`);
             lote = [];
         }
     }
 
     if (lote.length > 0) {
-        await prisma.vacante.createMany({ data: lote, skipDuplicates: true });
+        await guardarLote(lote);
         totalInsertadas += lote.length;
     }
 
-    console.log(`Listo. Insertadas: ${totalInsertadas}. Descartadas: ${totalDescartadas}.`);
+    console.log(`Listo. Procesadas: ${totalInsertadas}. Descartadas: ${totalDescartadas}.`);
     await prisma.$disconnect();
 }
 
