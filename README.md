@@ -9,18 +9,20 @@ por **verticales de negocio**, de modo que cada integrante es dueño de una part
 - Node.js + Express 5 + TypeScript
 - Prisma 7 (ORM) + PostgreSQL 17
 - Autenticación con JWT
+- **Documentación:** OpenAPI/Swagger (`swagger-jsdoc` + `swagger-ui-express`)
+- **Testing:** Vitest + Supertest (Integración y Unitarias)
 
 ## Verticales
 
 | Vertical | Responsable | Contenido |
 |---|---|---|
-| A. Perfil y Autenticación | Samuel | Registro, login, perfil por pasos y completitud |
-| B. Vacantes e Ingesta | Matías | Catálogo, búsqueda, filtros y carga del dataset |
+| A. Perfil y Autenticación | Samuel | Registro, login, limitadores de peticiones (rate limiting), perfil por pasos y completitud |
+| B. Vacantes e Ingesta | Matías | Catálogo, búsqueda *full-text* con índice GIN, filtros, carga del dataset de Colombia, OpenAPI y pruebas de integración |
 | C. Recomendación y Matching | Villiam | Motor de scoring, explicación e historial |
-| D. Postulación y Trazabilidad | Juan Pablo | Postulaciones y su seguimiento |
+| D. Postulación y Trazabilidad | Juan Pablo | Postulaciones, su seguimiento y notificaciones |
 
 Cada capa (`src/domain`, `src/application`, `src/infrastructure`, `src/interfaces`) tiene una carpeta por vertical.
-Recomendación vive en `src/recommendation`, con la misma separación de capas.
+Recomendación vive en `src/recommendation`, con la misma separación de capas. Las pruebas están unificadas en la carpeta raíz `tests/`.
 
 ## Puesta en marcha
 
@@ -29,78 +31,3 @@ Requisitos: Node.js 20 o superior (el equipo usa la 24), PostgreSQL 17 y npm.
 1. Instalar dependencias:
    ```bash
    npm install
-   ```
-2. Crear el archivo `.env` a partir del ejemplo y completar los valores:
-   ```bash
-   cp .env.example .env
-   ```
-   - `DATABASE_URL`: cadena de conexión a tu PostgreSQL local (por ejemplo `postgresql://postgres:TU_CLAVE@localhost:5432/magneto_db`).
-   - `JWT_SECRET`: texto largo y secreto.
-   - `PORT`: `4000`.
-3. Crear la base de datos vacía (por ejemplo `magneto_db`) y aplicar las migraciones:
-   ```bash
-   npx prisma migrate dev
-   ```
-4. Cargar las vacantes (ver la sección del dataset) y arrancar el servidor:
-   ```bash
-   npx tsx prisma/seed-vacantes.ts
-   npm run dev
-   ```
-5. Comprobar que responde: abrir `http://localhost:4000/health`.
-
-| Script | Qué hace |
-|---|---|
-| `npm run dev` | Servidor en modo desarrollo con recarga automática |
-| `npm run build` | Compila TypeScript a `dist/` |
-| `npm start` | Ejecuta la versión compilada |
-
-## API
-
-| Método y ruta | Descripción | Token |
-|---|---|---|
-| `GET /health` | Estado del servicio | No |
-| `POST /auth/registro` | Crear cuenta | No |
-| `POST /auth/login` | Iniciar sesión (devuelve token y `usuarioId`) | No |
-| `GET /perfil` | Perfil con porcentaje de completitud y desglose por sección | Sí |
-| `PUT /perfil/paso/:paso` | Guardar un paso del perfil: `datos-personales`, `experiencia`, `educacion`, `habilidades` o `preferencias` | Sí |
-| `GET /vacantes` | Catálogo paginado. Parámetros: `pagina`, `limite`, `ubicacion`, `modalidad`, `nivelExperiencia`, `salarioMin`, `salarioMax`, `q` (búsqueda de texto) | No |
-| `GET /vacantes/:id` | Detalle de una vacante | No |
-| `GET /recomendaciones/:usuarioId` | Vacantes recomendadas con puntaje, motivos y desglose | No |
-| `GET /recomendaciones/:usuarioId/historial` | Historial de recomendaciones | No |
-| `POST /postulaciones` | Postularse a una vacante (`vacanteId` en el cuerpo; el usuario sale del token). Si ya existe, `409`; si la vacante no existe, `404` | Sí |
-| `GET /postulaciones/resumen` | Reporte del tablero: total, cantidad por estado y tasa de avance | Sí |
-| `GET /postulaciones` | Postulaciones del usuario autenticado | Sí |
-| `PATCH /postulaciones/:id/estado` | Cambiar el estado (`estado`: `POSTULADO`, `EN_REVISION`, `ENTREVISTA`, `DESCARTADO`). Solo el dueño; `403` si no lo es, `404` si no existe | Sí |
-| `GET /postulaciones/:id/actividad` | Registro de actividad (trazabilidad). Solo el dueño | Sí |
-| `GET /notificaciones` | Notificaciones del usuario autenticado (`?soloNoLeidas=true` para filtrar) | Sí |
-| `PATCH /notificaciones/:id/leida` | Marcar una notificación propia como leída | Sí |
-
-## Dataset de vacantes
-
-Las vacantes se cargan con `prisma/seed-vacantes.ts` desde `data/postings.csv`, un archivo que **no está en el
-repositorio** (pesa más de 100 MB).El dataset de Colombia utilizado para demostraciones es una versión adaptada del 'Recruiting Dataset in Spanish' alojado en Kaggle por razimbres.
-
-## Trabajo en equipo
-
-- Cada cambio va en una rama propia creada desde `main` y entra por Pull Request con revisión de otra vertical.
-  Nadie sube directo a `main`.
-- El `prisma/schema.prisma` es compartido: avisen en el grupo antes de modificarlo e incluyan la migración en el
-  mismo PR. Antes de hacer commit revisen `git status`, para no subir migraciones generadas por accidente.
-- Después de cada `git pull`: `npm install`, `npx prisma generate` y `npx prisma migrate dev`. Si Prisma pide
-  reiniciar la base, `npx prisma migrate reset` borra los datos locales y vuelve a aplicar todo.
-
-## Estado y pendientes
-
-- Cambiar el estado de una postulación (en revisión, entrevista, descartado), notificaciones y registro de
-  actividad: implementado (vertical D). Los botones del tablero del frontend usan `PATCH /postulaciones/:id/estado`;
-  cada cambio genera una notificación y una entrada en el registro de actividad.
-- Seguridad (vertical D): todas las rutas de `/postulaciones` y `/notificaciones` exigen token (`authMiddleware`).
-  El `usuarioId` sale del token, no del cuerpo ni de la URL, y cada operación verifica que la postulación sea del
-  usuario autenticado (`403` si no lo es).
-- Reporte del tablero: `GET /postulaciones/resumen` (total, cantidad por estado y tasa de avance).
-- Decisión de diseño: **"Descartado" sí puede reabrirse** (moverse a cualquier otro estado). En un proceso
-  simulado es más flexible y menos sorprendente para el usuario; cada reapertura queda en el registro de actividad.
-- Pesos configurables del recomendador, descartar vacantes y revisión de la fórmula del puntaje con el nuevo
-  dataset: pendientes (vertical C).
-- Dataset de vacantes de Colombia, en español, con salarios en COP: pendiente (vertical B).
-- Pruebas automatizadas: pruebas e2e del flujo de postulaciones en `src/__tests__` (vertical D); el resto, pendiente.
