@@ -78,10 +78,7 @@ Requisitos: Node.js 20 o superior (el equipo usa la 24), PostgreSQL 17 y npm.
 ## Dataset de vacantes
 
 Las vacantes se cargan con `prisma/seed-vacantes.ts` desde `data/postings.csv`, un archivo que **no está en el
-repositorio** (pesa más de 100 MB). El dataset actual es "LinkedIn Job Postings (2023-2024)" de Kaggle
-(`arshkon/linkedin-job-postings`): más de 100.000 registros, de Estados Unidos y en inglés. Se usó porque el reto
-permite datasets públicos cuando no hay acceso a las vacantes reales de Magneto. La carga se puede repetir sin
-duplicar registros, porque cada vacante tiene su URL original como valor único.
+repositorio** (pesa más de 100 MB).El dataset de Colombia utilizado para demostraciones es una versión adaptada del 'Recruiting Dataset in Spanish' alojado en Kaggle por razimbres.
 
 ## Trabajo en equipo
 

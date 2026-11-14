@@ -16,6 +16,37 @@ const useCase = new PostulacionUseCase(repo);
 // (req.usuarioId, puesto por authMiddleware), nunca del cuerpo ni de la URL.
 router.use(authMiddleware);
 
+/**
+ * @openapi
+ * /api/postulaciones:
+ *   post:
+ *     summary: Crea una nueva postulación a una vacante
+ *     tags: [Postulaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [vacanteId]
+ *             properties:
+ *               vacanteId:
+ *                 type: string
+ *                 description: UUID de la vacante
+ *     responses:
+ *       201:
+ *         description: Postulación creada exitosamente
+ *       400:
+ *         description: Falta vacanteId
+ *       404:
+ *         description: Vacante no encontrada
+ *       409:
+ *         description: Postulación duplicada
+ *       500:
+ *         description: Error interno del servidor
+ */
 // POST /postulaciones  (body: { vacanteId })
 router.post('/', async (req, res) => {
   try {
@@ -27,11 +58,9 @@ router.post('/', async (req, res) => {
     const postulacion = await useCase.postularUsuario(usuarioId, vacanteId);
     return res.status(201).json(postulacion);
   } catch (error: any) {
-    // Postularse dos veces a la misma vacante devuelve 409 con mensaje claro.
     if (error instanceof ErrorPostulacionDuplicada) {
       return res.status(409).json({ error: error.message });
     }
-    // Vacante inexistente: 404 en vez del error crudo de la base de datos.
     if (error instanceof ErrorRecursoNoEncontrado) {
       return res.status(404).json({ error: error.message });
     }
@@ -41,8 +70,6 @@ router.post('/', async (req, res) => {
 });
 
 // GET /postulaciones/resumen  -> reporte del tablero del usuario autenticado.
-// IMPORTANTE: declarado ANTES de /:usuarioId para que "resumen" no se
-// interprete como un usuarioId.
 router.get('/resumen', async (req, res) => {
   try {
     const usuarioId = req.usuarioId as string;
@@ -54,8 +81,21 @@ router.get('/resumen', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/postulaciones:
+ *   get:
+ *     summary: Obtiene la lista de postulaciones del usuario autenticado
+ *     tags: [Postulaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de postulaciones obtenida exitosamente
+ *       500:
+ *         description: Error interno del servidor
+ */
 // GET /postulaciones  -> postulaciones del usuario autenticado.
-// Ya no se recibe el usuarioId por la URL: sale del token.
 router.get('/', async (req, res) => {
   try {
     const usuarioId = req.usuarioId as string;
@@ -68,7 +108,6 @@ router.get('/', async (req, res) => {
 });
 
 // PATCH /postulaciones/:id/estado  (body: { estado })
-// Botones del tablero. Solo el dueño de la postulacion puede cambiarla.
 router.patch('/:id/estado', async (req, res) => {
   try {
     const usuarioId = req.usuarioId as string;
@@ -94,7 +133,7 @@ router.patch('/:id/estado', async (req, res) => {
   }
 });
 
-// GET /postulaciones/:id/actividad  -> trazabilidad. Solo el dueño la ve.
+// GET /postulaciones/:id/actividad  -> trazabilidad.
 router.get('/:id/actividad', async (req, res) => {
   try {
     const usuarioId = req.usuarioId as string;

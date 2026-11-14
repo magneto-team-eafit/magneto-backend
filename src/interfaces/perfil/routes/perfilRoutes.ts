@@ -4,9 +4,74 @@ import { authMiddleware } from "../middlewares/authMiddleware";
 
 const router = Router();
 
-// authMiddleware va ANTES del controlador en todas las rutas: la peticion
-// pasa primero por ahi, y solo si el token es valido llega al controlador.
+/**
+ * @openapi
+ * /api/perfil:
+ *   get:
+ *     summary: Obtiene el perfil del usuario autenticado
+ *     tags: [Perfil]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Perfil del usuario obtenido exitosamente
+ *       401:
+ *         description: No autorizado, token faltante o inválido
+ */
 router.get("/", authMiddleware, PerfilController.obtener);
+
+/**
+ * @openapi
+ * /api/perfil/paso/{paso}:
+ *   put:
+ *     summary: Guarda o actualiza un paso específico del wizard del perfil
+ *     tags: [Perfil]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paso
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Número del paso del wizard (ej. 1 al 5)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             description: Objeto con los datos específicos del paso
+ *     responses:
+ *       200:
+ *         description: Paso guardado exitosamente
+ *       400:
+ *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado
+ */
 router.put("/paso/:paso", authMiddleware, PerfilController.guardarPaso);
+
+/**
+ * @openapi
+ * /api/perfil:
+ *   put:
+ *     summary: Actualiza la información completa del perfil
+ *     tags: [Perfil]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Perfil actualizado exitosamente
+ *       401:
+ *         description: No autorizado
+ */
+router.put("/", authMiddleware, PerfilController.actualizar);
 
 export default router;
