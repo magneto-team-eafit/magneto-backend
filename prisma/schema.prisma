@@ -100,6 +100,8 @@ model Vacante {
   salarioMin       Int?
   salarioMax       Int?
   moneda           String?
+  // true = rango de referencia asignado por nosotros (la oferta no decia salario)
+  salarioEstimado  Boolean   @default(false)
   descripcion      String
   urlOriginal      String?   @unique
   fuente           String    @default("kaggle-linkedin")

@@ -7,6 +7,8 @@ import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse";
 import { prisma } from "../src/infrastructure/database/PrismaClient";
+import { inferirNivel } from "../src/domain/vacantes/clasificacion";
+import { estimarSalario, extraerSalarioReal } from "../src/domain/vacantes/salarios";
 
 const RUTA_CSV = path.join(__dirname, "data/Recruiting_Dataset_spanish.csv");
 const TAMANO_LOTE = 500;
@@ -36,11 +38,13 @@ function normalizarCiudad(ciudad: string, estado: string): string | null {
     let ciudadNorm = normalizar(ciudad);
 
     if (ciudadNorm.includes("bogota")) {
-        return "Bogotá D.C., Bogotá D.C.";
+        return "Bogotá D.C.";
     }
 
     const estadoLimpio = estado && estado !== "0" ? estado.trim() : "";
-    return estadoLimpio ? `${ciudad.trim()}, ${estadoLimpio}` : ciudad.trim();
+    // Si la ciudad y el estado son lo mismo ("Medellin, Medellin") se deja uno solo.
+    if (!estadoLimpio || normalizar(estadoLimpio) === ciudadNorm) return ciudad.trim();
+    return `${ciudad.trim()}, ${estadoLimpio}`;
 }
 
 // Guarda un lote: las filas con urlOriginal se insertan o actualizan (UPSERT
@@ -83,9 +87,11 @@ async function seed() {
 
     for await (const fila of parser as AsyncIterable<FilaCSV>) {
         const titulo = fila["nome da vaga"];
-        const empresa = fila["nome da empresa"];
+        // En el dataset, "0" significa que la oferta no dice la empresa.
+        const empresaCruda = fila["nome da empresa"]?.trim();
+        const empresa = empresaCruda && empresaCruda !== "0" ? empresaCruda : "Empresa confidencial";
 
-        if (!titulo?.trim() || !empresa?.trim()) {
+        if (!titulo?.trim()) {
             totalDescartadas++;
             continue;
         }
@@ -113,14 +119,8 @@ async function seed() {
             modalidad = "remoto";
         }
 
-        // Inferir nivel de experiencia
-        const tituloNorm = normalizar(titulo);
-        let nivelExperiencia = null;
-        if (tituloNorm.includes("junior") || tituloNorm.includes("jr") || tituloNorm.includes("practicante") || tituloNorm.includes("auxiliar")) {
-            nivelExperiencia = "Entry level";
-        } else if (tituloNorm.includes("senior") || tituloNorm.includes("sr") || tituloNorm.includes("lider") || tituloNorm.includes("jefe") || tituloNorm.includes("director")) {
-            nivelExperiencia = "Mid-Senior level";
-        }
+        // Nivel de experiencia inferido por el titulo (ver domain/vacantes/clasificacion.ts)
+        const nivelExperiencia = inferirNivel(titulo);
 
         // Procesar fecha de publicación
         let fechaPublicacion = new Date();
@@ -130,9 +130,18 @@ async function seed() {
             if (match) {
                 const dia = parseInt(match[1]);
                 const mes = parseInt(match[2]) - 1;
-                fechaPublicacion = new Date(new Date().getFullYear(), mes, dia);
+                const hoy = new Date();
+                fechaPublicacion = new Date(hoy.getFullYear(), mes, dia);
+                // El texto solo trae dia y mes: si da una fecha futura, es del año anterior.
+                if (fechaPublicacion > hoy) fechaPublicacion.setFullYear(hoy.getFullYear() - 1);
             }
         }
+
+        // Salario: primero el que diga la oferta; si no dice, un rango estimado
+        // (marcado con salarioEstimado = true). Ver domain/vacantes/salarios.ts.
+        const textoOferta = `${descripcion}\n${fila["beneficios"] ?? ""}`;
+        const salarioReal = extraerSalarioReal(textoOferta);
+        const salario = salarioReal ?? estimarSalario(titulo, urlOriginal || `${titulo}|${empresa}`);
 
         lote.push({
             titulo: titulo.trim().slice(0, 300),
@@ -140,8 +149,9 @@ async function seed() {
             ubicacion: ubicacion,
             modalidad: modalidad,
             nivelExperiencia: nivelExperiencia,
-            salarioMin: null, // Como dijo Claude, mejor dejamos null a inventar datos falsos
-            salarioMax: null,
+            salarioMin: salario.min,
+            salarioMax: salario.max,
+            salarioEstimado: !salarioReal,
             moneda: "COP",
             descripcion: descripcion,
             urlOriginal: urlOriginal || null,

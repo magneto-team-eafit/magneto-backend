@@ -16,7 +16,9 @@ export class Vacante {
         public readonly descripcion: string,
         public readonly urlOriginal: string | null,
         public readonly fuente: string,
-        public readonly fechaPublicacion: Date | null
+        public readonly fechaPublicacion: Date | null,
+        // true = rango de referencia estimado; false = el que decia la oferta
+        public readonly salarioEstimado: boolean = false
     ) {}
 
     // Se usa cuando se crea una vacante nueva a mano (ej. desde un endpoint
@@ -37,6 +39,7 @@ export class Vacante {
         urlOriginal?: string | null;
         fuente?: string;
         fechaPublicacion?: Date | null;
+        salarioEstimado?: boolean;
     }): Vacante {
         if (props.titulo.trim().length === 0) {
             throw new Error("El titulo de la vacante no puede estar vacio");
@@ -58,7 +61,8 @@ export class Vacante {
             props.descripcion,
             props.urlOriginal ?? null,
             props.fuente ?? "kaggle-linkedin",
-            props.fechaPublicacion ?? null
+            props.fechaPublicacion ?? null,
+            props.salarioEstimado ?? false
         );
     }
 
@@ -78,6 +82,7 @@ export class Vacante {
         urlOriginal: string | null;
         fuente: string;
         fechaPublicacion: Date | null;
+        salarioEstimado?: boolean;
     }): Vacante {
         return new Vacante(
             props.id,
@@ -92,7 +97,8 @@ export class Vacante {
             props.descripcion,
             props.urlOriginal,
             props.fuente,
-            props.fechaPublicacion
+            props.fechaPublicacion,
+            props.salarioEstimado ?? false
         );
     }
 }
