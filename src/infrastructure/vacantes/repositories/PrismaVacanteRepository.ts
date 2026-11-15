@@ -5,9 +5,10 @@ import {
 } from "../../../domain/vacantes/repositories/IVacanteRepository";
 import { Vacante } from "../../../domain/vacantes/entities/Vacante";
 import { prisma } from "../../database/PrismaClient";
+import { TEXTO_VACANTE_SQL, patronContiene } from "../busquedaSql";
 
 // Shape cruda de una fila devuelta por Prisma (tanto por findMany como
-// por el $queryRaw de busqueda full-text), para no repetir el mapeo.
+// por el $queryRaw de la busqueda), para no repetir el mapeo.
 interface FilaVacante {
     id: string;
     titulo: string;
@@ -47,65 +48,44 @@ export class PrismaVacanteRepository implements IVacanteRepository {
         const { ubicacion, modalidad, nivelExperiencia, salarioMin, salarioMax, q, pagina, limite } = filtros;
         const offset = (pagina - 1) * limite;
 
-        // Camino 1: hay texto de busqueda -> usamos busqueda full-text real
-        // de Postgres (to_tsvector + plainto_tsquery) sobre titulo, empresa
-        // y descripcion, en vez de un LIKE simple. Esto es lo que el reto
-        // de Entrega 2 pide como "busqueda full-text".
-        if (q && q.trim().length > 0) {
-            const condiciones: string[] = [
-                `to_tsvector('spanish', titulo || ' ' || empresa || ' ' || descripcion) @@ plainto_tsquery('spanish', $1)`,
-            ];
-            const valores: unknown[] = [q.trim()];
+        // Una sola consulta SQL para todos los casos. Cada filtro que llega
+        // agrega una condicion al WHERE (todas unidas con AND). Los valores
+        // van como parametros ($1, $2...), nunca pegados al texto del SQL.
+        // Texto y ubicacion se comparan con sin_tildes() de los dos lados,
+        // asi "Bogota" encuentra "Bogotá" y "disenador" encuentra "diseñador".
+        const condiciones: string[] = [];
+        const valores: unknown[] = [];
 
-            function agregarCondicion(sql: string, valor: unknown) {
-                valores.push(valor);
-                condiciones.push(sql.replace("$N", `$${valores.length}`));
-            }
-
-            if (ubicacion) agregarCondicion(`ubicacion ILIKE $N`, `%${ubicacion}%`);
-            if (modalidad) agregarCondicion(`modalidad = $N`, modalidad);
-            if (nivelExperiencia) agregarCondicion(`"nivelExperiencia" = $N`, nivelExperiencia);
-            if (salarioMin !== undefined) agregarCondicion(`"salarioMin" >= $N`, salarioMin);
-            if (salarioMax !== undefined) agregarCondicion(`"salarioMax" <= $N`, salarioMax);
-
-            const where = condiciones.join(" AND ");
-
-            const filas = await prisma.$queryRawUnsafe<FilaVacante[]>(
-                `SELECT * FROM vacantes WHERE ${where} ORDER BY "fechaPublicacion" DESC NULLS LAST LIMIT ${limite} OFFSET ${offset}`,
-                ...valores
-            );
-            const [{ count }] = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
-                `SELECT COUNT(*)::bigint AS count FROM vacantes WHERE ${where}`,
-                ...valores
-            );
-
-            return { vacantes: filas.map(aEntidad), total: Number(count) };
+        function agregar(sql: string, valor: unknown) {
+            valores.push(valor);
+            condiciones.push(sql.replace("$N", `$${valores.length}`));
         }
 
-        // Camino 2: sin texto de busqueda -> query normal de Prisma,
-        // mas simple y mas facil de mantener que raw SQL cuando no
-        // hace falta full-text.
-        const where = {
-            ...(ubicacion && { ubicacion: { contains: ubicacion, mode: "insensitive" as const } }),
-            ...(modalidad && { modalidad }),
-            ...(nivelExperiencia && { nivelExperiencia }),
-            ...((salarioMin !== undefined || salarioMax !== undefined) && {
-                ...(salarioMin !== undefined && { salarioMin: { gte: salarioMin } }),
-                ...(salarioMax !== undefined && { salarioMax: { lte: salarioMax } }),
-            }),
-        };
+        // Busqueda full-text real de Postgres (to_tsvector + plainto_tsquery)
+        // sobre titulo, empresa y descripcion, usando el indice GIN.
+        if (q && q.trim().length > 0) {
+            agregar(`${TEXTO_VACANTE_SQL} @@ plainto_tsquery('spanish', sin_tildes($N))`, q.trim());
+        }
+        if (ubicacion && ubicacion.trim().length > 0) {
+            agregar(`sin_tildes(ubicacion) LIKE sin_tildes($N)`, patronContiene(ubicacion));
+        }
+        if (modalidad) agregar(`modalidad = $N`, modalidad);
+        if (nivelExperiencia) agregar(`"nivelExperiencia" = $N`, nivelExperiencia);
+        if (salarioMin !== undefined) agregar(`"salarioMin" >= $N`, salarioMin);
+        if (salarioMax !== undefined) agregar(`"salarioMax" <= $N`, salarioMax);
 
-        const [filas, total] = await Promise.all([
-            prisma.vacante.findMany({
-                where,
-                skip: offset,
-                take: limite,
-                orderBy: { fechaPublicacion: "desc" },
-            }),
-            prisma.vacante.count({ where }),
-        ]);
+        const where = condiciones.length > 0 ? `WHERE ${condiciones.join(" AND ")}` : "";
 
-        return { vacantes: filas.map(aEntidad), total };
+        const filas = await prisma.$queryRawUnsafe<FilaVacante[]>(
+            `SELECT * FROM vacantes ${where} ORDER BY "fechaPublicacion" DESC NULLS LAST, id LIMIT ${Number(limite)} OFFSET ${Number(offset)}`,
+            ...valores
+        );
+        const [{ count }] = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
+            `SELECT COUNT(*)::bigint AS count FROM vacantes ${where}`,
+            ...valores
+        );
+
+        return { vacantes: filas.map(aEntidad), total: Number(count) };
     }
 
     async obtenerPorId(id: string): Promise<Vacante | null> {
