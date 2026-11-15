@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../infrastructure/database/PrismaClient";
+import { TEXTO_VACANTE_V_SQL, patronContiene } from "../../infrastructure/vacantes/busquedaSql";
 
 const LIMITE_POR_TEXTO = 200;
 const LIMITE_POR_CIUDAD = 100;
@@ -27,15 +28,14 @@ export async function buscarVacantesCandidatas(params: {
   if (terminos.length > 0) {
     // Los terminos ya vienen limpios (solo letras y numeros): se unen con OR.
     const tsquery = terminos.join(" | ");
-    // La expresion de to_tsvector es la misma del indice GIN, para que lo use.
+    // La expresion del texto es la misma del indice GIN (con sin_tildes), para que lo use.
     const filas = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
       SELECT v.id
       FROM vacantes v
-      WHERE to_tsvector('spanish', v.titulo || ' ' || v.empresa || ' ' || v.descripcion)
-            @@ to_tsquery('spanish', ${tsquery})
+      WHERE ${Prisma.raw(TEXTO_VACANTE_V_SQL)} @@ to_tsquery('spanish', ${tsquery})
         AND ${noDescartada}
       ORDER BY ts_rank(
-        to_tsvector('spanish', v.titulo || ' ' || v.empresa || ' ' || v.descripcion),
+        ${Prisma.raw(TEXTO_VACANTE_V_SQL)},
         to_tsquery('spanish', ${tsquery})
       ) DESC
       LIMIT ${LIMITE_POR_TEXTO}
@@ -48,7 +48,7 @@ export async function buscarVacantesCandidatas(params: {
     const filas = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
       SELECT v.id
       FROM vacantes v
-      WHERE v.ubicacion ILIKE ${"%" + ciudad + "%"}
+      WHERE sin_tildes(v.ubicacion) LIKE sin_tildes(${patronContiene(ciudad)})
         AND ${noDescartada}
       LIMIT ${LIMITE_POR_CIUDAD}
     `);
@@ -76,8 +76,7 @@ export async function calcularFrecuenciasPalabras(palabras: string[]): Promise<M
       const [fila] = await prisma.$queryRaw<{ cantidad: bigint }[]>(Prisma.sql`
         SELECT COUNT(*) AS cantidad
         FROM vacantes v
-        WHERE to_tsvector('spanish', v.titulo || ' ' || v.empresa || ' ' || v.descripcion)
-              @@ plainto_tsquery('spanish', ${palabra})
+        WHERE ${Prisma.raw(TEXTO_VACANTE_V_SQL)} @@ plainto_tsquery('spanish', ${palabra})
       `);
       frecuencias.set(palabra, Number(fila.cantidad) / total);
     }),
