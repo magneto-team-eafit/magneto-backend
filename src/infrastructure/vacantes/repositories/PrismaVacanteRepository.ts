@@ -23,6 +23,7 @@ interface FilaVacante {
     urlOriginal: string | null;
     fuente: string;
     fechaPublicacion: Date | null;
+    salarioEstimado: boolean;
 }
 
 function aEntidad(fila: FilaVacante): Vacante {
@@ -40,6 +41,7 @@ function aEntidad(fila: FilaVacante): Vacante {
         urlOriginal: fila.urlOriginal,
         fuente: fila.fuente,
         fechaPublicacion: fila.fechaPublicacion,
+        salarioEstimado: fila.salarioEstimado,
     });
 }
 
