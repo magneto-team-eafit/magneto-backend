@@ -23,6 +23,7 @@ model Usuario {
   postulaciones Postulacion[]
   historialRecomendaciones HistorialRecomendacion[]
   notificaciones Notificacion[]
+  vacantesDescartadas VacanteDescartada[]
 
   @@map("usuarios")
 }
@@ -111,6 +112,7 @@ model Vacante {
 
   postulaciones Postulacion[]
   historialRecomendaciones HistorialRecomendacion[]
+  descartes VacanteDescartada[]
 
   @@index([ubicacion])
   @@index([modalidad])
@@ -186,3 +188,18 @@ model HistorialRecomendacion {
   @@map("historial_recomendaciones")
 }
 
+// Vacantes que la persona marco como "No me interesa". Es una tabla de union
+// usuario-vacante: la llave primaria compuesta evita duplicados (descartar dos
+// veces la misma vacante no crea otra fila).
+model VacanteDescartada {
+  usuarioId String
+  vacanteId String
+  createdAt DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  vacante Vacante @relation(fields: [vacanteId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, vacanteId])
+  @@index([vacanteId])
+  @@map("vacantes_descartadas")
+}

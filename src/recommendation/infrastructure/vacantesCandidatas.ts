@@ -9,7 +9,7 @@ const LIMITE_POR_CIUDAD = 100;
 // ~3000 una por una. Dos fuentes, unidas:
 //  1) las mas parecidas por texto (indice GIN full-text, ordenadas con ts_rank)
 //  2) las de la ciudad del usuario
-// Se excluyen las que la persona ya descarto. (SQL: UNION de dos SELECT con
+// Se excluyen las que la persona ya descarto (postulacion descartada o "No me interesa"). (SQL: UNION de dos SELECT con
 // NOT EXISTS para el filtro.)
 export async function buscarVacantesCandidatas(params: {
   usuarioId: string;
@@ -22,6 +22,9 @@ export async function buscarVacantesCandidatas(params: {
   const noDescartada = Prisma.sql`NOT EXISTS (
     SELECT 1 FROM postulaciones p
     WHERE p."vacanteId" = v.id AND p."usuarioId" = ${usuarioId} AND p.estado = 'DESCARTADO'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM vacantes_descartadas d
+    WHERE d."vacanteId" = v.id AND d."usuarioId" = ${usuarioId}
   )`;
 
   const terminos = consultaTexto.split(" ").filter(Boolean);
