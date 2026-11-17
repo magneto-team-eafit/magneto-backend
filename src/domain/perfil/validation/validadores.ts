@@ -82,7 +82,7 @@ function validarFecha(
     }
     const fecha = new Date(`${valor}T00:00:00.000Z`);
     if (Number.isNaN(fecha.getTime()) || fecha.toISOString().slice(0, 10) !== valor) {
-        errores[campo] = `${opciones.etiqueta} no es una fecha valida.`;
+        errores[campo] = `${opciones.etiqueta} no es una fecha válida.`;
         return null;
     }
     if (fecha.getUTCFullYear() < 1950) {
@@ -141,7 +141,7 @@ export function validarDatosPersonales(entrada: unknown): { datos: DatosPersonal
     }
 
     const ubicacion = validarTexto(e.ubicacion, "ubicacion", errores, {
-        min: 2, max: 100, obligatorio: true, etiqueta: "La ubicacion",
+        min: 2, max: 100, obligatorio: true, etiqueta: "La ubicación",
     });
     const resumen = validarTexto(e.resumen, "resumen", errores, {
         min: 20, max: 1000, obligatorio: true, etiqueta: "El resumen profesional", multilinea: true,    });
@@ -168,7 +168,7 @@ export function validarExperiencias(entrada: unknown): { datos: ExperienciaItem[
         return { datos: [], errores };
     }
     if (lista.length > MAX_EXPERIENCIAS) {
-        errores.experiencias = `Maximo ${MAX_EXPERIENCIAS} experiencias.`;
+        errores.experiencias = `Máximo ${MAX_EXPERIENCIAS} experiencias.`;
         return { datos: [], errores };
     }
 
@@ -186,7 +186,7 @@ export function validarExperiencias(entrada: unknown): { datos: ExperienciaItem[
             min: 2, max: 100, obligatorio: true, etiqueta: "El cargo",
         });
         const descripcion = validarTexto(item.descripcion, `${p}.descripcion`, errores, {
-            min: 0, max: 1000, obligatorio: false, etiqueta: "La descripcion", multilinea: true,        });
+            min: 0, max: 1000, obligatorio: false, etiqueta: "La descripción", multilinea: true,        });
         const fechaInicio = validarFecha(item.fechaInicio, `${p}.fechaInicio`, errores, {
             obligatoria: true, etiqueta: "La fecha de inicio",
         });
@@ -218,7 +218,7 @@ export function validarEducaciones(entrada: unknown): { datos: EducacionItem[]; 
         return { datos: [], errores };
     }
     if (lista.length > MAX_EDUCACIONES) {
-        errores.educaciones = `Maximo ${MAX_EDUCACIONES} estudios.`;
+        errores.educaciones = `Máximo ${MAX_EDUCACIONES} estudios.`;
         return { datos: [], errores };
     }
 
@@ -230,10 +230,10 @@ export function validarEducaciones(entrada: unknown): { datos: EducacionItem[]; 
             return;
         }
         const institucion = validarTexto(item.institucion, `${p}.institucion`, errores, {
-            min: 2, max: 150, obligatorio: true, etiqueta: "La institucion",
+            min: 2, max: 150, obligatorio: true, etiqueta: "La institución",
         });
         const titulo = validarTexto(item.titulo, `${p}.titulo`, errores, {
-            min: 2, max: 150, obligatorio: true, etiqueta: "El titulo",
+            min: 2, max: 150, obligatorio: true, etiqueta: "El título",
         });
 
         let nivel: string | null = null;
@@ -284,7 +284,7 @@ export function validarHabilidades(entrada: unknown): { datos: string[]; errores
     });
 
     if (datos.length > MAX_HABILIDADES) {
-        errores.habilidades = `Maximo ${MAX_HABILIDADES} habilidades.`;
+        errores.habilidades = `Máximo ${MAX_HABILIDADES} habilidades.`;
     }
 
     return { datos, errores };

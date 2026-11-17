@@ -13,7 +13,7 @@ export class Usuario {
 
     static crear(props: { id: string; email: string; passwordHash: string}): Usuario {
         if(!Usuario.esEmailValido(props.email)) {
-            throw new Error("El email no tiene un formato valido");
+            throw new Error("El email no tiene un formato válido");
         }
 
         return new Usuario(props.id, props.email, props.passwordHash, new Date());

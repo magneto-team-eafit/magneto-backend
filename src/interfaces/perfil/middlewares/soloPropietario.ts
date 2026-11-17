@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from "express";
 // a toda la ruta, para que nadie lea las filas de otro cambiando el numero.
 export function soloPropietario(req: Request, res: Response, next: NextFunction): void {
     if (req.params.usuarioId !== req.usuarioId) {
-        res.status(403).json({ error: "No tienes permiso para ver esta informacion" });
+        res.status(403).json({ error: "No tienes permiso para ver esta información" });
         return;
     }
     next();
