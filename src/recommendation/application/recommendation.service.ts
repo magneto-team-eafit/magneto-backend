@@ -110,7 +110,8 @@ async function guardarEnHistorial(usuarioId: string, recomendaciones: Recomendac
 
 export async function obtenerHistorialPorUsuarioId(usuarioId: string) {
   return prisma.historialRecomendacion.findMany({
-    where: { usuarioId },
+    // Lo descartado con "No me interesa" tampoco aparece en el historial.
+    where: { usuarioId, vacante: { descartes: { none: { usuarioId } } } },
     include: {
       vacante: {
         select: { titulo: true, empresa: true, ubicacion: true, modalidad: true },
@@ -119,4 +120,18 @@ export async function obtenerHistorialPorUsuarioId(usuarioId: string) {
     orderBy: { createdAt: "desc" },
     take: 100,
   });
+}
+
+// "No me interesa": guarda el descarte. Es idempotente (upsert): descartar dos
+// veces la misma vacante no falla ni duplica. Devuelve false si la vacante no existe.
+export async function descartarVacante(usuarioId: string, vacanteId: string): Promise<boolean> {
+  const vacante = await prisma.vacante.findUnique({ where: { id: vacanteId }, select: { id: true } });
+  if (!vacante) return false;
+
+  await prisma.vacanteDescartada.upsert({
+    where: { usuarioId_vacanteId: { usuarioId, vacanteId } },
+    create: { usuarioId, vacanteId },
+    update: {},
+  });
+  return true;
 }

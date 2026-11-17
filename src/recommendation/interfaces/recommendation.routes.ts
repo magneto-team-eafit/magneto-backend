@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getRecomendacionesHandler,
         getHistorialHandler,
+        postDescarteHandler,
 } from "./recommendation.controller";
 import { authMiddleware } from "../../interfaces/perfil/middlewares/authMiddleware";
 import { soloPropietario } from "../../interfaces/perfil/middlewares/soloPropietario";
@@ -65,5 +66,44 @@ router.get("/:usuarioId", authMiddleware, soloPropietario, getRecomendacionesHan
  *         description: Error interno del servidor
  */
 router.get("/:usuarioId/historial", authMiddleware, soloPropietario, getHistorialHandler);
+
+/**
+ * @openapi
+ * /recomendaciones/{usuarioId}/descartes:
+ *   post:
+ *     summary: Marcar una vacante como "No me interesa"
+ *     description: La vacante deja de aparecer en las recomendaciones y en el historial del usuario. Es idempotente. El usuarioId de la URL debe ser el del token.
+ *     tags: [Recomendaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: usuarioId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [vacanteId]
+ *             properties:
+ *               vacanteId:
+ *                 type: string
+ *     responses:
+ *       204:
+ *         description: Vacante descartada
+ *       400:
+ *         description: Falta vacanteId
+ *       401:
+ *         description: Token faltante, inválido o vencido
+ *       403:
+ *         description: El usuarioId de la URL no es el del token
+ *       404:
+ *         description: La vacante no existe
+ */
+router.post("/:usuarioId/descartes", authMiddleware, soloPropietario, postDescarteHandler);
 
 export default router;
