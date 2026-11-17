@@ -94,7 +94,7 @@ export class Perfil {
 
     static crear(props: { id: string; usuarioId: string; nombreCompleto: string }): Perfil {
         if (props.nombreCompleto.trim().length === 0) {
-            throw new Error("El nombre completo no puede estar vacio");
+            throw new Error("El nombre completo no puede estar vacío");
         }
         return new Perfil(props.id, props.usuarioId, props.nombreCompleto, null, null, "", "", 0, "", [], [], []);
     }

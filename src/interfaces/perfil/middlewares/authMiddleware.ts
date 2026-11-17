@@ -28,7 +28,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     const payload = jwtService.verificar(token);
 
     if (!payload) {
-        res.status(401).json({ error: "Token invalido o expirado" });
+        res.status(401).json({ error: "Token inválido o expirado" });
         return;
     }
 

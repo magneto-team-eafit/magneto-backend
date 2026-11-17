@@ -42,10 +42,10 @@ export class Vacante {
         salarioEstimado?: boolean;
     }): Vacante {
         if (props.titulo.trim().length === 0) {
-            throw new Error("El titulo de la vacante no puede estar vacio");
+            throw new Error("El título de la vacante no puede estar vacío");
         }
         if (props.empresa.trim().length === 0) {
-            throw new Error("La empresa de la vacante no puede estar vacia");
+            throw new Error("La empresa de la vacante no puede estar vacía");
         }
 
         return new Vacante(

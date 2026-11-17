@@ -4,7 +4,7 @@
 
 export class ErrorValidacion extends Error {
     constructor(public readonly detalles: Record<string, string>) {
-        super("Hay campos con informacion invalida");
+        super("Hay campos con información inválida");
         this.name = "ErrorValidacion";
     }
 }
